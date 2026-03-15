@@ -16,6 +16,7 @@ A free, browser-based tool for creating custom artwork for your [Jellyfin](https
 - **Second text layer** — independent font, size, color, alignment and position (great for subtitles, years, episode labels)
 - **Gradient presets** — 8 curated presets with full custom 3-stop gradient control and 4 direction options
 - **Background image** — upload any photo with opacity, blur, brightness, contrast, saturation, blend mode, and color overlay controls
+- **Gif Export** - the ability to animate your artwork and export it as a gif. 
 - **Background gradient** — 3-stop gradient background with 5 directions including radial
 - **Pattern backgrounds** — 6 built-in patterns (Dots, Grid, Diagonal, Chevron, Crosshatch, Hexagons) with color, opacity and scale control
 - **Texture overlays** — Grain, Scanlines, Halftone, Scratches with intensity and blend mode control
