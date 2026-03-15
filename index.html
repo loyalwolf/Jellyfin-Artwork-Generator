@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- Google tag (gtag.js) -->
+<!-- GMT -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-YJ9LPMHDLS"></script>
 <script>
   window.dataLayer = window.dataLayer || [];
@@ -15,7 +15,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Jellyfin Art Generator</title>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@700;800&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@700;800&family=Oswald:wght@600;700&family=Bebas+Neue&family=Righteous&family=Permanent+Marker&family=Lobster&family=Boogaloo&family=Bangers&family=Abril+Fatface&family=Exo+2:wght@700;800&family=Orbitron:wght@700;800&family=Rajdhani:wght@600;700&family=Cinzel:wght@700;900&family=Playfair+Display:wght@700;900&family=Merriweather:wght@700;900&family=Russo+One&family=Anton&family=Teko:wght@600;700&family=Kanit:wght@700;800&family=Chakra+Petch:wght@700&family=Press+Start+2P&family=VT323&family=Creepster&family=Alfa+Slab+One&display=swap');
 
   * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -623,11 +623,49 @@
       <div class="field">
         <label>Font</label>
         <select id="fontFace" onchange="render()">
-          <option value="'Nunito', sans-serif">Nunito (rounded)</option>
-          <option value="'Arial Rounded MT Bold', sans-serif">Arial Rounded</option>
-          <option value="Georgia, serif">Georgia (serif)</option>
-          <option value="'Courier New', monospace">Courier New</option>
-          <option value="Impact, sans-serif">Impact</option>
+          <optgroup label="── Rounded &amp; Friendly ──">
+            <option value="'Nunito', sans-serif">Nunito</option>
+            <option value="'Righteous', sans-serif">Righteous</option>
+            <option value="'Boogaloo', sans-serif">Boogaloo</option>
+          </optgroup>
+          <optgroup label="── Bold &amp; Display ──">
+            <option value="'Bebas Neue', sans-serif">Bebas Neue</option>
+            <option value="'Oswald', sans-serif">Oswald</option>
+            <option value="'Anton', sans-serif">Anton</option>
+            <option value="'Russo One', sans-serif">Russo One</option>
+            <option value="'Teko', sans-serif">Teko</option>
+            <option value="'Bangers', sans-serif">Bangers</option>
+            <option value="'Abril Fatface', serif">Abril Fatface</option>
+            <option value="'Alfa Slab One', serif">Alfa Slab One</option>
+            <option value="Impact, sans-serif">Impact</option>
+          </optgroup>
+          <optgroup label="── Sci-Fi &amp; Tech ──">
+            <option value="'Orbitron', sans-serif">Orbitron</option>
+            <option value="'Exo 2', sans-serif">Exo 2</option>
+            <option value="'Chakra Petch', sans-serif">Chakra Petch</option>
+            <option value="'Rajdhani', sans-serif">Rajdhani</option>
+            <option value="'Kanit', sans-serif">Kanit</option>
+          </optgroup>
+          <optgroup label="── Elegant &amp; Serif ──">
+            <option value="'Cinzel', serif">Cinzel</option>
+            <option value="'Playfair Display', serif">Playfair Display</option>
+            <option value="'Merriweather', serif">Merriweather</option>
+            <option value="'Bree Serif', serif">Bree Serif</option>
+            <option value="Georgia, serif">Georgia</option>
+          </optgroup>
+          <optgroup label="── Handwritten &amp; Fun ──">
+            <option value="'Permanent Marker', cursive">Permanent Marker</option>
+            <option value="'Lobster', cursive">Lobster</option>
+            <option value="'Creepster', cursive">Creepster</option>
+          </optgroup>
+          <optgroup label="── Retro &amp; Pixel ──">
+            <option value="'Press Start 2P', monospace">Press Start 2P</option>
+            <option value="'VT323', monospace">VT323</option>
+            <option value="'Courier New', monospace">Courier New</option>
+          </optgroup>
+          <optgroup label="── System ──">
+            <option value="'Arial Rounded MT Bold', sans-serif">Arial Rounded</option>
+          </optgroup>
         </select>
       </div>
     </div>
@@ -1150,8 +1188,10 @@ function render() {
   canvas.height = H;
 
   const pane   = document.querySelector('.preview-pane');
+  const badge  = document.getElementById('sizeBadge');
+  const reservedH = 48 + badge.offsetHeight + 20; // padding + badge + gap
   const availW = pane.clientWidth  - 48;
-  const availH = pane.clientHeight - 48;
+  const availH = pane.clientHeight - reservedH;
   const scale  = Math.min(1, availW / W, availH / H);
   canvas.style.width  = Math.round(W * scale) + 'px';
   canvas.style.height = Math.round(H * scale) + 'px';
@@ -1188,5 +1228,41 @@ render();
 window.addEventListener('resize', render);
 document.querySelectorAll('.line-input').forEach(el => el.addEventListener('input', render));
 </script>
+
+<style>
+  .footer {
+    flex-shrink: 0;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-top: 1px solid var(--border);
+    background: var(--surface);
+    gap: 6px;
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.03em;
+  }
+  .footer a {
+    color: var(--accent);
+    text-decoration: none;
+    font-weight: 700;
+    transition: opacity 0.15s;
+  }
+  .footer a:hover { opacity: 0.75; }
+  .footer .heart {
+    background: linear-gradient(135deg, #f070f8, #7b68ee, #00b4cc);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    font-size: 13px;
+  }
+</style>
+
+<div class="footer">
+  <span class="heart">♥</span>
+  <span>Powered by tea &amp; Millennial spirit —</span>
+  <a href="https://github.com/loyalwolf/Jellyfin-Artwork-Generator" target="_blank" rel="noopener">View on GitHub</a>
+</div>
 </body>
 </html>
