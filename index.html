@@ -102,20 +102,61 @@ button.action:hover{opacity:.82}
 .footer a{color:var(--accent);text-decoration:none;font-weight:700;transition:opacity .15s}
 .footer a:hover{opacity:.75}
 .footer .heart{background:linear-gradient(135deg,#f070f8,#7b68ee,#00b4cc);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;font-size:13px}
+/* presets */
+.preset-list{display:flex;flex-direction:column;gap:6px;max-height:180px;overflow-y:auto}
+.preset-item{display:flex;align-items:center;gap:6px}
+.preset-item .preset-name{flex:1;font-size:12px;color:var(--text);background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:5px 8px;cursor:pointer;transition:border-color .15s;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.preset-item .preset-name:hover{border-color:var(--accent)}
+.preset-item .preset-del{background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px;padding:2px 4px;border-radius:4px;width:auto;transition:color .15s}
+.preset-item .preset-del:hover{color:#e05050}
+/* topbar extras */
+.topbar-actions{display:flex;align-items:center;gap:8px;margin-left:auto}
+.topbar-btn{background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;font-family:inherit;cursor:pointer;transition:all .15s;white-space:nowrap}
+.topbar-btn:hover{border-color:var(--accent);color:var(--accent)}
+.topbar-btn:disabled{opacity:.4;cursor:not-allowed}
+.topbar-btn.active{border-color:var(--accent);color:var(--accent)}
+/* zoom indicator */
+.zoom-badge{font-size:11px;color:var(--muted);letter-spacing:.04em;flex-shrink:0;cursor:pointer;user-select:none}
+.zoom-badge:hover{color:var(--accent)}
 </style>
 </head>
 <body>
-<div class="topbar"><h1>Jellyfin Art Generator</h1></div>
+<div class="topbar">
+  <h1>Jellyfin Art Generator</h1>
+  <div class="topbar-actions">
+    <button class="topbar-btn" id="undoBtn" onclick="undo()" title="Undo (Ctrl+Z)" disabled>&#8592; Undo</button>
+    <button class="topbar-btn" id="redoBtn" onclick="redo()" title="Redo (Ctrl+Y)" disabled>Redo &#8594;</button>
+  </div>
+</div>
 <div class="main">
 
 <!-- LEFT: Preview -->
-<div class="preview-pane">
-  <div class="canvas-wrapper"><canvas id="poster-canvas"></canvas></div>
-  <div id="sizeBadge" class="size-badge">680 × 1000 px</div>
+<div class="preview-pane" id="previewPane">
+  <div class="canvas-wrapper" id="canvasWrapper"><canvas id="poster-canvas"></canvas></div>
+  <div style="display:flex;gap:16px;align-items:center;flex-shrink:0">
+    <div id="sizeBadge" class="size-badge">680 × 1000 px</div>
+    <div id="zoomBadge" class="zoom-badge" onclick="resetZoom()" title="Click to reset zoom">100% &#x25A2;</div>
+  </div>
 </div>
 
 <!-- RIGHT: Controls -->
 <div class="controls-pane">
+
+  <!-- Presets -->
+  <div class="section">
+    <div class="section-title">Presets</div>
+    <div class="row">
+      <input type="text" id="presetName" placeholder="Preset name..." style="flex:1">
+      <button class="action btn-export" style="width:auto;padding:7px 12px;white-space:nowrap" onclick="savePreset()">&#43; Save</button>
+    </div>
+    <div class="preset-list" id="presetList"></div>
+    <div class="row" style="margin-top:2px">
+      <button class="action btn-export" style="flex:1" onclick="exportPresets()">&#8595; Export presets</button>
+      <button class="action btn-export-trans" style="flex:1" onclick="document.getElementById('presetImportInput').click()">&#8593; Import presets</button>
+      <input type="file" id="presetImportInput" accept=".json" style="display:none" onchange="importPresets(this)">
+    </div>
+    <p class="hint">Presets persist in your browser. Export to back them up or share across devices.</p>
+  </div>
 
   <!-- Canvas -->
   <div class="section">
@@ -528,6 +569,22 @@ button.action:hover{opacity:.82}
         <div class="color-field"><span>Text color</span><div class="color-swatch-btn" id="badgeTextColorBtn"><input type="color" id="badgeTextColor" value="#000000" oninput="syncSwatch('badgeTextColor','badgeTextColorBtn');render()"><div class="swatch-preview" style="background:#000000"></div></div></div>
       </div>
     </div>
+  </div>
+
+  <!-- Batch Export -->
+  <div class="section">
+    <div class="section-title">Batch Export</div>
+    <p class="hint">Export all selected image types at once, each at the correct dimensions. Your current design is redrawn at each size.</p>
+    <div style="display:flex;flex-direction:column;gap:6px" id="batchTypeList">
+      <label style="display:flex;align-items:center;gap:8px;font-size:12px;cursor:pointer"><input type="checkbox" class="batch-type" value="primary"  data-w="680"  data-h="1000" checked> Primary / Poster (680×1000)</label>
+      <label style="display:flex;align-items:center;gap:8px;font-size:12px;cursor:pointer"><input type="checkbox" class="batch-type" value="backdrop" data-w="1920" data-h="1080"> Backdrop (1920×1080)</label>
+      <label style="display:flex;align-items:center;gap:8px;font-size:12px;cursor:pointer"><input type="checkbox" class="batch-type" value="banner"   data-w="1000" data-h="185"> Banner (1000×185)</label>
+      <label style="display:flex;align-items:center;gap:8px;font-size:12px;cursor:pointer"><input type="checkbox" class="batch-type" value="thumb"    data-w="1280" data-h="720"> Thumb (1280×720)</label>
+      <label style="display:flex;align-items:center;gap:8px;font-size:12px;cursor:pointer"><input type="checkbox" class="batch-type" value="logo"     data-w="800"  data-h="310"> Logo (800×310)</label>
+      <label style="display:flex;align-items:center;gap:8px;font-size:12px;cursor:pointer"><input type="checkbox" class="batch-type" value="clearart" data-w="1000" data-h="562"> Clearart (1000×562)</label>
+    </div>
+    <button class="action btn-export" onclick="batchExport(false)">&#8595; Batch Export (with bg)</button>
+    <button class="action btn-export-trans" onclick="batchExport(true)">&#8595; Batch Export (transparent)</button>
   </div>
 
   <!-- Export -->
@@ -1005,22 +1062,27 @@ function drawToContext(ctx, W, H, withBg) {
 }
 
 // ── Render ──
+var renderDebounce = null;
 function render() {
   var W = parseInt(document.getElementById('canvasW').value) || 680;
   var H = parseInt(document.getElementById('canvasH').value) || 1000;
   var canvas = document.getElementById('poster-canvas');
   canvas.width  = W;
   canvas.height = H;
-  var pane  = document.querySelector('.preview-pane');
-  var badge = document.getElementById('sizeBadge');
-  var resH  = 48 + badge.offsetHeight + 20;
-  var availW = pane.clientWidth  - 48;
-  var availH = pane.clientHeight - resH;
-  var scale  = Math.min(1, availW/W, availH/H);
-  canvas.style.width  = Math.round(W*scale) + 'px';
-  canvas.style.height = Math.round(H*scale) + 'px';
+  var pane     = document.querySelector('.preview-pane');
+  var badgeH   = 32; // fixed reserve for size + zoom badges row
+  var availW   = pane.clientWidth  - 48;
+  var availH   = pane.clientHeight - 48 - badgeH;
+  if (availW < 10) availW = 400;
+  if (availH < 10) availH = 600;
+  var scale = Math.min(1, availW / W, availH / H);
+  canvas.style.width  = Math.round(W * scale) + 'px';
+  canvas.style.height = Math.round(H * scale) + 'px';
   document.getElementById('sizeBadge').textContent = W + ' x ' + H + ' px';
   drawToContext(canvas.getContext('2d'), W, H, true);
+  // debounced undo capture
+  clearTimeout(renderDebounce);
+  renderDebounce = setTimeout(captureState, 600);
 }
 
 // ── Export ──
@@ -1127,8 +1189,403 @@ document.addEventListener('DOMContentLoaded', function() {
   document.querySelectorAll('.line2-input').forEach(function(el){ el.addEventListener('input', render); });
 
   buildSwatches();
-  render();
+  renderPresetList();
+  initZoomPan();
+  initKeyboard();
+  // Defer first render until browser has finished layout
+  requestAnimationFrame(function() {
+    requestAnimationFrame(function() {
+      render();
+      setTimeout(captureState, 400);
+    });
+  });
 });
+
+// ── Undo / Redo ──
+var undoStack = [];
+var redoStack = [];
+var undoPaused = false;
+
+function captureState() {
+  if (undoPaused) return;
+  var state = getStateSnapshot();
+  var last = undoStack[undoStack.length - 1];
+  if (last && last === JSON.stringify(state)) return;
+  undoStack.push(JSON.stringify(state));
+  if (undoStack.length > 50) undoStack.shift();
+  redoStack = [];
+  updateUndoButtons();
+}
+
+function getStateSnapshot() {
+  var ids = [
+    'canvasW','canvasH','imageType','bgType','bgColor',
+    'bgGradEnabled','bgG1','bgG2','bgG3','bgGradDir',
+    'imgFit','imgOpacity','imgBlur','imgBrightness','imgContrast','imgSaturate','imgBlend',
+    'overlayEnabled','overlayColor','overlayOpacity',
+    'vignetteEnabled','vignetteIntensity','vignetteSpread','vignetteColor',
+    'borderEnabled','borderWidth','borderColor','borderStyle','borderRadius',
+    'fontSize','textAlign','fontFace',
+    'textOffsetX','textOffsetY',
+    'layer2Enabled','fontSize2','textAlign2','fontFace2','color2','layer2Pos','layer2Opacity',
+    'logoEnabled','logoSize','logoOpacity','logoPadding',
+    'badgeEnabled','badgeText','badgeCorner','badgeSize','badgeBg','badgeTextColor',
+    'c1','c2','c3','gradDir','solidColor',
+    'outlineFill','outlineStroke','outlineWidth',
+    'shadowText','shadowColor','shadowBlur',
+    'neonCore','neonGlow','stampFill','stampStroke','stampWidth'
+  ];
+  var snap = {textStyle: currentTextStyle, textPosV: textPosV, textPosH: textPosH, logoPos: logoPos};
+  ids.forEach(function(id) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    snap[id] = el.type === 'checkbox' ? el.checked : el.value;
+  });
+  snap.lines  = Array.from(document.querySelectorAll('.line-input')).map(function(e){ return e.value; });
+  snap.lines2 = Array.from(document.querySelectorAll('.line2-input')).map(function(e){ return e.value; });
+  return snap;
+}
+
+function applyStateSnapshot(snap) {
+  console.log('[applyState] called, bgType:', snap.bgType, 'bgColor:', snap.bgColor, 'lines:', snap.lines);
+  undoPaused = true;
+  var ids = [
+    'canvasW','canvasH','imageType','bgType','bgColor',
+    'bgGradEnabled','bgG1','bgG2','bgG3','bgGradDir',
+    'imgFit','imgOpacity','imgBlur','imgBrightness','imgContrast','imgSaturate','imgBlend',
+    'overlayEnabled','overlayColor','overlayOpacity',
+    'vignetteEnabled','vignetteIntensity','vignetteSpread','vignetteColor',
+    'borderEnabled','borderWidth','borderColor','borderStyle','borderRadius',
+    'fontSize','textAlign','fontFace',
+    'textOffsetX','textOffsetY',
+    'layer2Enabled','fontSize2','textAlign2','fontFace2','color2','layer2Pos','layer2Opacity',
+    'logoEnabled','logoSize','logoOpacity','logoPadding',
+    'badgeEnabled','badgeText','badgeCorner','badgeSize','badgeBg','badgeTextColor',
+    'c1','c2','c3','gradDir','solidColor',
+    'outlineFill','outlineStroke','outlineWidth',
+    'shadowText','shadowColor','shadowBlur',
+    'neonCore','neonGlow','stampFill','stampStroke','stampWidth'
+  ];
+
+  ids.forEach(function(id) {
+    if (!(id in snap)) return;
+    var el = document.getElementById(id);
+    if (!el) return;
+    if (el.type === 'checkbox') {
+      // handle both boolean (from JSON import) and string (from undo stack)
+      el.checked = (snap[id] === true || snap[id] === 'true');
+    } else {
+      el.value = snap[id] !== undefined ? snap[id] : '';
+    }
+  });
+
+  // Restore text lines
+  if (snap.lines)  Array.from(document.querySelectorAll('.line-input')).forEach(function(e,i){ e.value = snap.lines[i] || ''; });
+  if (snap.lines2) Array.from(document.querySelectorAll('.line2-input')).forEach(function(e,i){ e.value = snap.lines2[i] || ''; });
+
+  // Restore state variables
+  currentTextStyle = snap.textStyle || 'gradient';
+  textPosV = snap.textPosV || 'middle';
+  textPosH = snap.textPosH || 'center';
+  logoPos  = snap.logoPos  || 'br';
+
+  // Restore text style tabs
+  setTextStyle(currentTextStyle);
+
+  // Restore conditional panel visibility
+  document.getElementById('bgColorField').style.display = snap.bgType === 'custom' ? 'flex' : 'none';
+
+  var panelMap = {
+    bgGradOptions:   'bgGradEnabled',
+    overlayOptions:  'overlayEnabled',
+    vignetteOptions: 'vignetteEnabled',
+    borderOptions:   'borderEnabled',
+    layer2Options:   'layer2Enabled',
+    logoOptions:     'logoEnabled',
+    badgeOptions:    'badgeEnabled'
+  };
+  Object.keys(panelMap).forEach(function(panelId) {
+    var enableKey = panelMap[panelId];
+    var panel = document.getElementById(panelId);
+    if (!panel) return;
+    var val = snap[enableKey];
+    var on = (val === true || val === 'true');
+    panel.classList.toggle('visible', on);
+  });
+
+  // Sync swatch previews
+  ['bgColor','bgG1','bgG2','bgG3','overlayColor','vignetteColor','borderColor',
+   'c1','c2','c3','solidColor','outlineFill','outlineStroke','shadowText','shadowColor',
+   'neonCore','neonGlow','stampFill','stampStroke','badgeBg','badgeTextColor','color2'
+  ].forEach(function(id){ syncSwatch(id, id + 'Btn'); });
+
+  // Sync slider labels
+  [['imgOpacity','imgOpacityVal'],['imgBlur','imgBlurVal'],['imgBrightness','imgBrightnessVal'],
+   ['imgContrast','imgContrastVal'],['imgSaturate','imgSaturateVal'],
+   ['overlayOpacity','overlayOpacityVal'],['vignetteIntensity','vignetteIntensityVal'],
+   ['vignetteSpread','vignetteSpreadVal'],['layer2Opacity','layer2OpacityVal'],
+   ['logoSize','logoSizeVal'],['logoOpacity','logoOpacityVal'],['logoPadding','logoPaddingVal'],
+   ['textOffsetX','textOffsetXVal'],['textOffsetY','textOffsetYVal']
+  ].forEach(function(pair){ ss(pair[0], pair[1]); });
+
+  undoPaused = false;
+
+  // Slight defer to ensure DOM values have settled before drawing
+  setTimeout(render, 50);
+}
+
+function undo() {
+  if (undoStack.length < 2) return;
+  redoStack.push(undoStack.pop());
+  var snap = JSON.parse(undoStack[undoStack.length - 1]);
+  applyStateSnapshot(snap);
+  updateUndoButtons();
+}
+
+function redo() {
+  if (!redoStack.length) return;
+  var snap = JSON.parse(redoStack.pop());
+  undoStack.push(JSON.stringify(snap));
+  applyStateSnapshot(snap);
+  updateUndoButtons();
+}
+
+function updateUndoButtons() {
+  document.getElementById('undoBtn').disabled = undoStack.length < 2;
+  document.getElementById('redoBtn').disabled = redoStack.length === 0;
+}
+
+// ── Presets ──
+var PRESET_KEY = 'jag_presets';
+
+function loadPresets() {
+  try { return JSON.parse(localStorage.getItem(PRESET_KEY)) || []; }
+  catch(e) { return []; }
+}
+
+function savePresets(list) {
+  try { localStorage.setItem(PRESET_KEY, JSON.stringify(list)); } catch(e) {}
+}
+
+function savePreset() {
+  var name = document.getElementById('presetName').value.trim();
+  if (!name) { document.getElementById('presetName').focus(); return; }
+  var list = loadPresets();
+  list.unshift({ name: name, state: getStateSnapshot() });
+  if (list.length > 20) list = list.slice(0, 20);
+  savePresets(list);
+  document.getElementById('presetName').value = '';
+  renderPresetList();
+}
+
+function loadPreset(idx) {
+  var list = loadPresets();
+  console.log('[loadPreset] idx:', idx, 'list length:', list.length, 'item:', list[idx] ? list[idx].name : 'NOT FOUND');
+  if (!list[idx]) return;
+  applyStateSnapshot(list[idx].state);
+}
+
+function deletePreset(idx) {
+  var list = loadPresets();
+  list.splice(idx, 1);
+  savePresets(list);
+  renderPresetList();
+}
+
+function exportPresets() {
+  var list = loadPresets();
+  if (!list.length) { alert('No presets to export.'); return; }
+  // Wrap in a versioned envelope so import can validate it
+  var envelope = { app: 'jellyfin-art-generator', version: 1, presets: list };
+  var json = JSON.stringify(envelope, null, 2);
+  var blob = new Blob([json], { type: 'application/json;charset=utf-8' });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = 'jellyfin-art-generator-presets.json';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
+}
+
+function importPresets(input) {
+  var file = input.files[0];
+  console.log('[import] file selected:', file ? file.name : 'none');
+  if (!file) return;
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      var raw = e.target.result;
+      console.log('[import] raw content length:', raw.length, 'first 100:', raw.slice(0,100));
+      var parsed = JSON.parse(raw);
+      console.log('[import] parsed:', parsed);
+      var imported = Array.isArray(parsed) ? parsed : (parsed && parsed.presets ? parsed.presets : null);
+      console.log('[import] imported array:', imported);
+      if (!imported || !Array.isArray(imported)) throw new Error('Not a valid presets file');
+      var existing = loadPresets();
+      var existingNames = existing.map(function(p){ return p.name; });
+      var added = 0;
+      imported.forEach(function(p) {
+        if (p && p.name && p.state) {
+          if (existingNames.indexOf(p.name) === -1) {
+            existing.unshift(p);
+            existingNames.unshift(p.name);
+            added++;
+          }
+        }
+      });
+      if (existing.length > 20) existing = existing.slice(0, 20);
+      savePresets(existing);
+      renderPresetList();
+      console.log('[import] done, existing now:', existing.length);
+      // Auto-apply the first imported preset
+      if (added > 0) {
+        applyStateSnapshot(existing[0].state);
+      }
+      alert('Imported ' + added + ' preset(s).' + (added < imported.length ? ' ' + (imported.length - added) + ' duplicate(s) skipped.' : '') + (added > 0 ? ' First preset applied.' : ''));
+    } catch(err) {
+      console.error('[import] error:', err);
+      alert('Import failed: ' + err.message);
+    }
+    input.value = '';
+  };
+  reader.onerror = function(e) {
+    console.error('[import] reader error:', e);
+    alert('Could not read the file.');
+    input.value = '';
+  };
+  reader.readAsText(file, 'UTF-8');
+}
+
+function renderPresetList() {
+  var cont = document.getElementById('presetList');
+  if (!cont) return;
+  var list = loadPresets();
+  cont.innerHTML = '';
+  if (!list.length) {
+    cont.innerHTML = '<p class="hint" style="padding:4px 0">No presets saved yet.</p>';
+    return;
+  }
+  list.forEach(function(p, i) {
+    var row = document.createElement('div');
+    row.className = 'preset-item';
+    var btn = document.createElement('div');
+    btn.className = 'preset-name';
+    btn.textContent = p.name;
+    btn.title = 'Click to load';
+    btn.onclick = (function(idx){ return function(){ loadPreset(idx); }; })(i);
+    var del = document.createElement('button');
+    del.className = 'preset-del action';
+    del.textContent = '✕';
+    del.title = 'Delete preset';
+    del.onclick = (function(idx){ return function(){ deletePreset(idx); }; })(i);
+    row.appendChild(btn);
+    row.appendChild(del);
+    cont.appendChild(row);
+  });
+}
+
+// ── Batch Export ──
+function batchExport(transparent) {
+  var checks = Array.from(document.querySelectorAll('.batch-type:checked'));
+  if (!checks.length) { alert('Select at least one image type to export.'); return; }
+  var origW = document.getElementById('canvasW').value;
+  var origH = document.getElementById('canvasH').value;
+  var textLabel = Array.from(document.querySelectorAll('.line-input'))
+    .map(function(i){ return i.value.trim(); }).filter(function(v){ return v; })
+    .join('-').replace(/\s+/g,'_').toLowerCase() || 'poster';
+  var suffix = transparent ? '_transparent' : '';
+  var delay = 0;
+  checks.forEach(function(cb) {
+    setTimeout(function() {
+      var W = parseInt(cb.dataset.w);
+      var H = parseInt(cb.dataset.h);
+      var off = document.createElement('canvas');
+      off.width = W; off.height = H;
+      // temporarily set canvas size for drawToContext
+      document.getElementById('canvasW').value = W;
+      document.getElementById('canvasH').value = H;
+      drawToContext(off.getContext('2d'), W, H, !transparent);
+      document.getElementById('canvasW').value = origW;
+      document.getElementById('canvasH').value = origH;
+      var filename = textLabel + '-' + cb.value + suffix + '.png';
+      off.toBlob(function(blob){
+        var a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = filename;
+        a.click();
+      }, 'image/png');
+    }, delay);
+    delay += 300;
+  });
+}
+
+// ── Zoom & Pan ──
+var zoomLevel = 1;
+var panX = 0, panY = 0;
+var isPanning = false, panStartX = 0, panStartY = 0, panOriginX = 0, panOriginY = 0;
+
+function applyZoom() {
+  var wrapper = document.getElementById('canvasWrapper');
+  var pct = Math.round(zoomLevel * 100);
+  document.getElementById('zoomBadge').textContent = pct + '% \u25A2';
+  wrapper.style.transform = 'translate(' + panX + 'px,' + panY + 'px) scale(' + zoomLevel + ')';
+  wrapper.style.transformOrigin = 'center center';
+  wrapper.style.transition = 'none';
+}
+
+function resetZoom() {
+  zoomLevel = 1; panX = 0; panY = 0;
+  applyZoom();
+  render();
+}
+
+function initZoomPan() {
+  var pane = document.getElementById('previewPane');
+  var wrapper = document.getElementById('canvasWrapper');
+  wrapper.style.cursor = 'grab';
+
+  pane.addEventListener('wheel', function(e) {
+    e.preventDefault();
+    var delta = e.deltaY > 0 ? -0.1 : 0.1;
+    zoomLevel = Math.min(4, Math.max(0.25, zoomLevel + delta));
+    applyZoom();
+  }, { passive: false });
+
+  wrapper.addEventListener('mousedown', function(e) {
+    if (e.button !== 0) return;
+    isPanning = true;
+    panStartX = e.clientX;
+    panStartY = e.clientY;
+    panOriginX = panX;
+    panOriginY = panY;
+    wrapper.style.cursor = 'grabbing';
+    e.preventDefault();
+  });
+
+  document.addEventListener('mousemove', function(e) {
+    if (!isPanning) return;
+    panX = panOriginX + (e.clientX - panStartX);
+    panY = panOriginY + (e.clientY - panStartY);
+    applyZoom();
+  });
+
+  document.addEventListener('mouseup', function() {
+    if (!isPanning) return;
+    isPanning = false;
+    wrapper.style.cursor = 'grab';
+  });
+}
+
+// ── Keyboard shortcuts ──
+function initKeyboard() {
+  document.addEventListener('keydown', function(e) {
+    var isInput = ['INPUT','TEXTAREA','SELECT'].indexOf(e.target.tagName) >= 0;
+    if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) { e.preventDefault(); undo(); }
+    if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) { e.preventDefault(); redo(); }
+  });
+}
 
 window.addEventListener('resize', render);
 </script>
