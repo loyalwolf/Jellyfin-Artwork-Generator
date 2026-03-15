@@ -1,0 +1,1182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Jellyfin Art Generator</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@700;800&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --bg: #101820;
+    --surface: #182028;
+    --surface2: #1e2a34;
+    --border: #2a3a44;
+    --accent: #00b4cc;
+    --accent2: #7b68ee;
+    --text: #d4e8ee;
+    --muted: #4a6070;
+    --label: #7aaabb;
+  }
+
+  html, body {
+    height: 100%;
+    overflow: hidden;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Nunito', sans-serif;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── Top bar ── */
+  .topbar {
+    display: flex;
+    align-items: center;
+    padding: 12px 24px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    flex-shrink: 0;
+    height: 48px;
+  }
+
+  .topbar h1 {
+    font-size: 14px;
+    font-weight: 800;
+    color: var(--accent);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  /* ── Main layout ── */
+  .main {
+    display: flex;
+    flex: 1;
+    min-height: 0; /* critical for children to respect height */
+  }
+
+  /* ── Preview pane (left) — NEVER scrolls ── */
+  .preview-pane {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 24px;
+    background: var(--bg);
+    overflow: hidden; /* locked — no scroll */
+  }
+
+  .canvas-wrapper {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+
+  #poster-canvas { display: block; }
+
+  .size-badge {
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.04em;
+    flex-shrink: 0;
+  }
+
+  /* ── Controls pane (right) — scrollable ── */
+  .controls-pane {
+    width: 340px;
+    flex-shrink: 0;
+    border-left: 1px solid var(--border);
+    background: var(--surface);
+    overflow-y: auto;   /* scrolls independently */
+    overflow-x: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* custom scrollbar */
+  .controls-pane::-webkit-scrollbar { width: 5px; }
+  .controls-pane::-webkit-scrollbar-track { background: transparent; }
+  .controls-pane::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+  .section {
+    border-bottom: 1px solid var(--border);
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    flex-shrink: 0;
+  }
+
+  .section-title {
+    font-size: 10px;
+    font-weight: 800;
+    color: var(--label);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+  }
+
+  .row {
+    display: flex;
+    gap: 8px;
+    align-items: flex-end;
+  }
+
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .field label {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--label);
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    white-space: nowrap;
+  }
+
+  input[type="text"],
+  input[type="number"],
+  select {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 6px;
+    padding: 7px 10px;
+    font-size: 13px;
+    font-family: inherit;
+    outline: none;
+    width: 100%;
+  }
+
+  input[type="number"] { -moz-appearance: textfield; }
+  input:focus, select:focus { border-color: var(--accent); }
+  select option { background: var(--surface2); }
+
+  .line-stack { display: flex; flex-direction: column; gap: 6px; }
+
+  /* ── Color picker fix ── 
+     Wrap color input in a label so the full cell is clickable,
+     and use a visible button-style swatch on top. */
+  .color-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .color-field span {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--label);
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+  }
+
+  .color-swatch-btn {
+    position: relative;
+    width: 100%;
+    height: 34px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    cursor: pointer;
+    overflow: hidden;
+  }
+
+  .color-swatch-btn input[type="color"] {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    cursor: pointer;
+    border: none;
+    padding: 0;
+  }
+
+  .color-swatch-btn .swatch-preview {
+    position: absolute;
+    inset: 0;
+    border-radius: 5px;
+    pointer-events: none;
+  }
+
+  /* Gradient presets */
+  .gradient-swatches {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+
+  .grad-swatch {
+    width: 32px;
+    height: 32px;
+    border-radius: 7px;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: border-color 0.15s, transform 0.1s;
+    flex-shrink: 0;
+  }
+  .grad-swatch:hover { transform: scale(1.1); }
+  .grad-swatch.active { border-color: #fff; }
+
+  /* Text style tabs */
+  .style-tabs {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+  }
+
+  .style-tab {
+    flex: 1;
+    min-width: 0;
+    padding: 6px 4px;
+    font-size: 11px;
+    font-weight: 700;
+    font-family: inherit;
+    text-align: center;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--surface2);
+    color: var(--muted);
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+
+  .style-tab:hover { color: var(--text); border-color: var(--accent); }
+  .style-tab.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #000;
+  }
+
+  /* Conditional sections */
+  .cond { display: none; }
+  .cond.visible { display: flex; flex-direction: column; gap: 10px; }
+
+  /* Buttons */
+  button.action {
+    border: none;
+    border-radius: 7px;
+    font-family: inherit;
+    font-weight: 700;
+    font-size: 12px;
+    padding: 9px 14px;
+    cursor: pointer;
+    transition: opacity 0.15s;
+    white-space: nowrap;
+    width: 100%;
+  }
+  button.action:hover { opacity: 0.82; }
+
+  .btn-export     { background: var(--surface2); border: 1px solid var(--border); color: var(--text); }
+  .btn-export-trans { background: transparent; border: 1px solid var(--accent); color: var(--accent); }
+
+  .hint {
+    font-size: 10px;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+
+  /* Image drop zone */
+  .drop-zone {
+    border: 2px dashed var(--border);
+    border-radius: 8px;
+    padding: 18px 12px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+    position: relative;
+  }
+  .drop-zone:hover, .drop-zone.drag-over {
+    border-color: var(--accent);
+    background: rgba(0,180,204,0.06);
+  }
+  .drop-zone input[type="file"] {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+    width: 100%;
+    height: 100%;
+    font-size: 0;
+  }
+  .drop-zone .dz-icon { font-size: 22px; margin-bottom: 4px; }
+  .drop-zone .dz-label { font-size: 11px; color: var(--muted); }
+  .drop-zone .dz-name  { font-size: 11px; color: var(--accent); margin-top: 4px; font-weight: 700; }
+
+  /* Slider row */
+  .slider-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .slider-row label {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--label);
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    white-space: nowrap;
+    min-width: 60px;
+  }
+  .slider-row input[type="range"] {
+    flex: 1;
+    height: 4px;
+    accent-color: var(--accent);
+    cursor: pointer;
+    background: transparent;
+    border: none;
+    padding: 0;
+  }
+  .slider-row .slider-val {
+    font-size: 11px;
+    color: var(--text);
+    min-width: 32px;
+    text-align: right;
+  }
+
+  /* Toggle row */
+  .toggle-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .toggle {
+    position: relative;
+    width: 32px;
+    height: 18px;
+    flex-shrink: 0;
+  }
+
+  .toggle input { opacity: 0; width: 0; height: 0; position: absolute; }
+
+  .toggle-track {
+    position: absolute;
+    inset: 0;
+    border-radius: 9px;
+    background: var(--border);
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+
+  .toggle input:checked + .toggle-track { background: var(--accent); }
+
+  .toggle-thumb {
+    position: absolute;
+    top: 2px; left: 2px;
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: #fff;
+    pointer-events: none;
+    transition: transform 0.2s;
+  }
+
+  .toggle input:checked ~ .toggle-thumb { transform: translateX(14px); }
+
+  .toggle-label { font-size: 12px; color: var(--text); cursor: pointer; user-select: none; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <h1>Jellyfin Art Generator</h1>
+</div>
+
+<div class="main">
+
+  <!-- LEFT: Preview (no scroll) -->
+  <div class="preview-pane">
+    <div class="canvas-wrapper">
+      <canvas id="poster-canvas"></canvas>
+    </div>
+    <div id="sizeBadge" class="size-badge">680 × 1000 px</div>
+  </div>
+
+  <!-- RIGHT: Controls (scrollable) -->
+  <div class="controls-pane">
+
+    <!-- Canvas / Image Type -->
+    <div class="section">
+      <div class="section-title">Canvas</div>
+      <div class="field">
+        <label>Image Type</label>
+        <select id="imageType" onchange="onTypeChange()">
+          <option value="primary"  data-w="680"  data-h="1000">Primary / Poster — 680×1000</option>
+          <option value="backdrop" data-w="1920" data-h="1080">Backdrop — 1920×1080</option>
+          <option value="banner"   data-w="1000" data-h="185" >Banner — 1000×185</option>
+          <option value="thumb"    data-w="1280" data-h="720" >Thumb — 1280×720</option>
+          <option value="logo"     data-w="800"  data-h="310" >Logo — 800×310</option>
+          <option value="clearart" data-w="1000" data-h="562" >Clearart — 1000×562</option>
+          <option value="box"      data-w="750"  data-h="1000">Box — 750×1000</option>
+          <option value="disc"     data-w="1000" data-h="1000">Disc — 1000×1000</option>
+          <option value="custom"   data-w="900"  data-h="1200">Custom</option>
+        </select>
+      </div>
+      <div class="row">
+        <div class="field">
+          <label>Width (px)</label>
+          <input type="number" id="canvasW" value="680" min="50" max="3840" oninput="render()">
+        </div>
+        <div class="field">
+          <label>Height (px)</label>
+          <input type="number" id="canvasH" value="1000" min="50" max="3840" oninput="render()">
+        </div>
+      </div>
+      <div class="row">
+        <div class="field">
+          <label>Background</label>
+          <select id="bgType" onchange="onBgChange()">
+            <option value="black">Black</option>
+            <option value="transparent">Transparent</option>
+            <option value="dark">Dark teal</option>
+            <option value="custom">Custom color</option>
+          </select>
+        </div>
+        <div class="color-field" id="bgColorField" style="display:none; max-width:60px">
+          <span>Color</span>
+          <div class="color-swatch-btn" id="bgSwatchBtn">
+            <input type="color" id="bgColor" value="#101820" oninput="syncSwatch('bgColor','bgSwatchBtn'); render()">
+            <div class="swatch-preview" id="bgSwatchPreview" style="background:#101820"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Background image sub-section -->
+      <div class="section-title" style="margin-top:4px">Background Image</div>
+      <div class="drop-zone" id="dropZone">
+        <input type="file" id="bgImageInput" accept="image/*" onchange="onImageLoad(this)">
+        <div class="dz-icon">🖼️</div>
+        <div class="dz-label">Click or drag an image here</div>
+        <div class="dz-name" id="dzName" style="display:none"></div>
+      </div>
+
+      <div class="cond" id="imgOptions">
+        <div class="field">
+          <label>Fit</label>
+          <select id="imgFit" onchange="render()">
+            <option value="cover">Cover (fill, crop edges)</option>
+            <option value="contain">Contain (fit inside)</option>
+            <option value="stretch">Stretch (fill exactly)</option>
+            <option value="tile">Tile (repeat)</option>
+            <option value="center">Center (no scale)</option>
+          </select>
+        </div>
+        <div class="slider-row">
+          <label>Opacity</label>
+          <input type="range" id="imgOpacity" min="0" max="100" value="100" oninput="sliderSync('imgOpacity','imgOpacityVal'); render()">
+          <span class="slider-val" id="imgOpacityVal">100%</span>
+        </div>
+        <div class="slider-row">
+          <label>Blur</label>
+          <input type="range" id="imgBlur" min="0" max="40" value="0" oninput="sliderSync('imgBlur','imgBlurVal'); render()">
+          <span class="slider-val" id="imgBlurVal">0px</span>
+        </div>
+        <div class="slider-row">
+          <label>Brightness</label>
+          <input type="range" id="imgBrightness" min="0" max="200" value="100" oninput="sliderSync('imgBrightness','imgBrightnessVal'); render()">
+          <span class="slider-val" id="imgBrightnessVal">100%</span>
+        </div>
+        <div class="slider-row">
+          <label>Contrast</label>
+          <input type="range" id="imgContrast" min="0" max="200" value="100" oninput="sliderSync('imgContrast','imgContrastVal'); render()">
+          <span class="slider-val" id="imgContrastVal">100%</span>
+        </div>
+        <div class="slider-row">
+          <label>Saturate</label>
+          <input type="range" id="imgSaturate" min="0" max="200" value="100" oninput="sliderSync('imgSaturate','imgSaturateVal'); render()">
+          <span class="slider-val" id="imgSaturateVal">100%</span>
+        </div>
+        <div class="field">
+          <label>Blend mode</label>
+          <select id="imgBlend" onchange="render()">
+            <option value="source-over">Normal</option>
+            <option value="multiply">Multiply</option>
+            <option value="screen">Screen</option>
+            <option value="overlay">Overlay</option>
+            <option value="soft-light">Soft Light</option>
+            <option value="hard-light">Hard Light</option>
+            <option value="color-dodge">Color Dodge</option>
+            <option value="color-burn">Color Burn</option>
+            <option value="luminosity">Luminosity</option>
+          </select>
+        </div>
+        <!-- Color overlay on top of image -->
+        <div class="toggle-row">
+          <label class="toggle">
+            <input type="checkbox" id="overlayEnabled" onchange="render()">
+            <div class="toggle-track"></div>
+            <div class="toggle-thumb"></div>
+          </label>
+          <span class="toggle-label" onclick="document.getElementById('overlayEnabled').click()">Color overlay</span>
+        </div>
+        <div class="cond" id="overlayOptions">
+          <div class="row">
+            <div class="color-field">
+              <span>Color</span>
+              <div class="color-swatch-btn" id="overlayColorBtn">
+                <input type="color" id="overlayColor" value="#000000" oninput="syncSwatch('overlayColor','overlayColorBtn'); render()">
+                <div class="swatch-preview" id="overlayColorPreview" style="background:#000000"></div>
+              </div>
+            </div>
+            <div class="field" style="max-width:140px">
+              <label>Opacity</label>
+              <div class="slider-row" style="margin-top:0">
+                <input type="range" id="overlayOpacity" min="0" max="100" value="40" oninput="sliderSync('overlayOpacity','overlayOpacityVal'); render()" style="flex:1">
+                <span class="slider-val" id="overlayOpacityVal">40%</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <button class="action btn-export" style="margin-top:2px" onclick="clearImage()">✕ Remove image</button>
+      </div>
+    </div>
+    <div class="section">
+      <div class="section-title">Border</div>
+      <div class="toggle-row">
+        <label class="toggle">
+          <input type="checkbox" id="borderEnabled" onchange="onBorderToggle()">
+          <div class="toggle-track"></div>
+          <div class="toggle-thumb"></div>
+        </label>
+        <span class="toggle-label" onclick="document.getElementById('borderEnabled').click()">Enable border</span>
+      </div>
+      <div class="cond" id="borderOptions">
+        <div class="row">
+          <div class="field">
+            <label>Width (px)</label>
+            <input type="number" id="borderWidth" value="12" min="1" max="200" oninput="render()">
+          </div>
+          <div class="color-field" style="max-width:80px">
+            <span>Color</span>
+            <div class="color-swatch-btn" id="borderSwatchBtn">
+              <input type="color" id="borderColor" value="#00b4cc" oninput="syncSwatch('borderColor','borderSwatchBtn'); render()">
+              <div class="swatch-preview" id="borderSwatchPreview" style="background:#00b4cc"></div>
+            </div>
+          </div>
+        </div>
+        <div class="row">
+          <div class="field">
+            <label>Style</label>
+            <select id="borderStyle" onchange="render()">
+              <option value="solid">Solid</option>
+              <option value="gradient">Gradient (matches text)</option>
+              <option value="inset">Inset glow</option>
+            </select>
+          </div>
+          <div class="field" style="max-width:90px">
+            <label>Radius (px)</label>
+            <input type="number" id="borderRadius" value="0" min="0" max="500" oninput="render()">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Text -->
+    <div class="section">
+      <div class="section-title">Text Lines</div>
+      <div class="line-stack">
+        <input type="text" class="line-input" value="Series" placeholder="Line 1">
+        <input type="text" class="line-input" placeholder="Line 2">
+        <input type="text" class="line-input" placeholder="Line 3">
+        <input type="text" class="line-input" placeholder="Line 4">
+      </div>
+      <div class="row">
+        <div class="field">
+          <label>Font size (px)</label>
+          <input type="number" id="fontSize" placeholder="Auto" min="10" max="600" oninput="render()">
+        </div>
+        <div class="field">
+          <label>Align</label>
+          <select id="textAlign" onchange="render()">
+            <option value="center">Center</option>
+            <option value="left">Left</option>
+            <option value="right">Right</option>
+          </select>
+        </div>
+      </div>
+      <div class="field">
+        <label>Font</label>
+        <select id="fontFace" onchange="render()">
+          <option value="'Nunito', sans-serif">Nunito (rounded)</option>
+          <option value="'Arial Rounded MT Bold', sans-serif">Arial Rounded</option>
+          <option value="Georgia, serif">Georgia (serif)</option>
+          <option value="'Courier New', monospace">Courier New</option>
+          <option value="Impact, sans-serif">Impact</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Text Style -->
+    <div class="section">
+      <div class="section-title">Text Style</div>
+      <div class="style-tabs">
+        <button class="style-tab active" data-style="gradient" onclick="setTextStyle('gradient')">Gradient</button>
+        <button class="style-tab" data-style="solid"    onclick="setTextStyle('solid')">Solid</button>
+        <button class="style-tab" data-style="outline"  onclick="setTextStyle('outline')">Outline</button>
+        <button class="style-tab" data-style="shadow"   onclick="setTextStyle('shadow')">Shadow</button>
+        <button class="style-tab" data-style="neon"     onclick="setTextStyle('neon')">Neon</button>
+        <button class="style-tab" data-style="stamp"    onclick="setTextStyle('stamp')">Stamp</button>
+      </div>
+
+      <!-- Gradient options -->
+      <div class="cond visible" id="opt-gradient">
+        <div class="gradient-swatches" id="swatches"></div>
+        <div class="row">
+          <div class="color-field">
+            <span>Color 1</span>
+            <div class="color-swatch-btn" id="c1Btn">
+              <input type="color" id="c1" value="#00b4cc" oninput="syncSwatch('c1','c1Btn'); onCustomGradient()">
+              <div class="swatch-preview" id="c1Preview" style="background:#00b4cc"></div>
+            </div>
+          </div>
+          <div class="color-field">
+            <span>Color 2</span>
+            <div class="color-swatch-btn" id="c2Btn">
+              <input type="color" id="c2" value="#7b68ee" oninput="syncSwatch('c2','c2Btn'); onCustomGradient()">
+              <div class="swatch-preview" id="c2Preview" style="background:#7b68ee"></div>
+            </div>
+          </div>
+          <div class="color-field">
+            <span>Color 3</span>
+            <div class="color-swatch-btn" id="c3Btn">
+              <input type="color" id="c3" value="#00e5aa" oninput="syncSwatch('c3','c3Btn'); onCustomGradient()">
+              <div class="swatch-preview" id="c3Preview" style="background:#00e5aa"></div>
+            </div>
+          </div>
+        </div>
+        <div class="field">
+          <label>Direction</label>
+          <select id="gradDir" onchange="render()">
+            <option value="lr">Left → Right</option>
+            <option value="tb">Top → Bottom</option>
+            <option value="diag">Diagonal ↘</option>
+            <option value="diagup">Diagonal ↗</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Solid options -->
+      <div class="cond" id="opt-solid">
+        <div class="row">
+          <div class="color-field">
+            <span>Text color</span>
+            <div class="color-swatch-btn" id="solidColorBtn">
+              <input type="color" id="solidColor" value="#ffffff" oninput="syncSwatch('solidColor','solidColorBtn'); render()">
+              <div class="swatch-preview" id="solidColorPreview" style="background:#ffffff"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Outline options -->
+      <div class="cond" id="opt-outline">
+        <div class="row">
+          <div class="color-field">
+            <span>Fill</span>
+            <div class="color-swatch-btn" id="outlineFillBtn">
+              <input type="color" id="outlineFill" value="#ffffff" oninput="syncSwatch('outlineFill','outlineFillBtn'); render()">
+              <div class="swatch-preview" id="outlineFillPreview" style="background:#ffffff"></div>
+            </div>
+          </div>
+          <div class="color-field">
+            <span>Stroke</span>
+            <div class="color-swatch-btn" id="outlineStrokeBtn">
+              <input type="color" id="outlineStroke" value="#00b4cc" oninput="syncSwatch('outlineStroke','outlineStrokeBtn'); render()">
+              <div class="swatch-preview" id="outlineStrokePreview" style="background:#00b4cc"></div>
+            </div>
+          </div>
+          <div class="field">
+            <label>Thickness</label>
+            <input type="number" id="outlineWidth" value="8" min="1" max="60" oninput="render()">
+          </div>
+        </div>
+      </div>
+
+      <!-- Shadow options -->
+      <div class="cond" id="opt-shadow">
+        <div class="row">
+          <div class="color-field">
+            <span>Text</span>
+            <div class="color-swatch-btn" id="shadowTextBtn">
+              <input type="color" id="shadowText" value="#ffffff" oninput="syncSwatch('shadowText','shadowTextBtn'); render()">
+              <div class="swatch-preview" id="shadowTextPreview" style="background:#ffffff"></div>
+            </div>
+          </div>
+          <div class="color-field">
+            <span>Shadow</span>
+            <div class="color-swatch-btn" id="shadowColorBtn">
+              <input type="color" id="shadowColor" value="#00b4cc" oninput="syncSwatch('shadowColor','shadowColorBtn'); render()">
+              <div class="swatch-preview" id="shadowColorPreview" style="background:#00b4cc"></div>
+            </div>
+          </div>
+          <div class="field">
+            <label>Blur</label>
+            <input type="number" id="shadowBlur" value="20" min="0" max="100" oninput="render()">
+          </div>
+        </div>
+      </div>
+
+      <!-- Neon options -->
+      <div class="cond" id="opt-neon">
+        <p class="hint">Bright text with layered glow — best on dark backgrounds.</p>
+        <div class="row">
+          <div class="color-field">
+            <span>Core</span>
+            <div class="color-swatch-btn" id="neonCoreBtn">
+              <input type="color" id="neonCore" value="#ffffff" oninput="syncSwatch('neonCore','neonCoreBtn'); render()">
+              <div class="swatch-preview" id="neonCorePreview" style="background:#ffffff"></div>
+            </div>
+          </div>
+          <div class="color-field">
+            <span>Glow</span>
+            <div class="color-swatch-btn" id="neonGlowBtn">
+              <input type="color" id="neonGlow" value="#00b4cc" oninput="syncSwatch('neonGlow','neonGlowBtn'); render()">
+              <div class="swatch-preview" id="neonGlowPreview" style="background:#00b4cc"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Stamp options -->
+      <div class="cond" id="opt-stamp">
+        <p class="hint">Bold fill with thick contrasting stroke — like a rubber stamp.</p>
+        <div class="row">
+          <div class="color-field">
+            <span>Fill</span>
+            <div class="color-swatch-btn" id="stampFillBtn">
+              <input type="color" id="stampFill" value="#00b4cc" oninput="syncSwatch('stampFill','stampFillBtn'); render()">
+              <div class="swatch-preview" id="stampFillPreview" style="background:#00b4cc"></div>
+            </div>
+          </div>
+          <div class="color-field">
+            <span>Stroke</span>
+            <div class="color-swatch-btn" id="stampStrokeBtn">
+              <input type="color" id="stampStroke" value="#ffffff" oninput="syncSwatch('stampStroke','stampStrokeBtn'); render()">
+              <div class="swatch-preview" id="stampStrokePreview" style="background:#ffffff"></div>
+            </div>
+          </div>
+          <div class="field">
+            <label>Thickness</label>
+            <input type="number" id="stampWidth" value="12" min="1" max="80" oninput="render()">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Export -->
+    <div class="section">
+      <div class="section-title">Export</div>
+      <button class="action btn-export" onclick="exportPNG(false)">⬇ Export PNG (with background)</button>
+      <button class="action btn-export-trans" onclick="exportPNG(true)">⬇ Export PNG (transparent bg)</button>
+      <p class="hint">Transparent export is ideal for Logo &amp; Clearart types.</p>
+    </div>
+
+  </div><!-- end controls-pane -->
+</div><!-- end main -->
+
+<script>
+// ── State ──
+let currentTextStyle = 'gradient';
+let bgImage = null; // HTMLImageElement when loaded
+
+// ── Slider sync ──
+function sliderSync(inputId, labelId) {
+  const v = document.getElementById(inputId).value;
+  const el = document.getElementById(labelId);
+  if (inputId.includes('Blur'))       el.textContent = v + 'px';
+  else                                 el.textContent = v + '%';
+}
+
+// ── Background image ──
+function onImageLoad(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const url = URL.createObjectURL(file);
+  const img = new Image();
+  img.onload = () => {
+    bgImage = img;
+    document.getElementById('dzName').textContent = file.name;
+    document.getElementById('dzName').style.display = 'block';
+    document.getElementById('dz-icon') && (document.querySelector('.dz-icon').textContent = '✅');
+    document.querySelector('.dz-label').textContent = 'Click to replace';
+    document.getElementById('imgOptions').classList.add('visible');
+    render();
+  };
+  img.src = url;
+}
+
+function clearImage() {
+  bgImage = null;
+  document.getElementById('bgImageInput').value = '';
+  document.getElementById('dzName').style.display = 'none';
+  document.querySelector('.dz-label').textContent = 'Click or drag an image here';
+  document.querySelector('.dz-icon').textContent = '🖼️';
+  document.getElementById('imgOptions').classList.remove('visible');
+  render();
+}
+
+// Drag-and-drop
+document.addEventListener('DOMContentLoaded', () => {
+  const dz = document.getElementById('dropZone');
+  dz.addEventListener('dragover',  e => { e.preventDefault(); dz.classList.add('drag-over'); });
+  dz.addEventListener('dragleave', () => dz.classList.remove('drag-over'));
+  dz.addEventListener('drop', e => {
+    e.preventDefault();
+    dz.classList.remove('drag-over');
+    const file = e.dataTransfer.files[0];
+    if (file && file.type.startsWith('image/')) {
+      const dt = new DataTransfer();
+      dt.items.add(file);
+      document.getElementById('bgImageInput').files = dt.files;
+      onImageLoad(document.getElementById('bgImageInput'));
+    }
+  });
+  document.getElementById('overlayEnabled').addEventListener('change', function() {
+    document.getElementById('overlayOptions').classList.toggle('visible', this.checked);
+    render();
+  });
+});
+
+// ── Color swatch sync ──
+function syncSwatch(inputId, btnId) {
+  const val = document.getElementById(inputId).value;
+  const preview = document.getElementById(btnId).querySelector('.swatch-preview');
+  if (preview) preview.style.background = val;
+}
+
+// ── Text style tabs ──
+function setTextStyle(style) {
+  currentTextStyle = style;
+  document.querySelectorAll('.style-tab').forEach(t => t.classList.toggle('active', t.dataset.style === style));
+  document.querySelectorAll('.cond[id^="opt-"]').forEach(el => {
+    el.classList.toggle('visible', el.id === 'opt-' + style);
+  });
+  render();
+}
+
+// ── Gradient presets ──
+const PRESETS = [
+  { c1:'#00b4cc', c2:'#7b68ee', c3:'#00e5aa', label:'Jellyfin teal' },
+  { c1:'#0a7a8f', c2:'#1a3a6e', c3:'#00c8b8', label:'Deep ocean' },
+  { c1:'#7b68ee', c2:'#b060d0', c3:'#4488dd', label:'Purple haze' },
+  { c1:'#f08030', c2:'#e03060', c3:'#f0c020', label:'Sunrise' },
+  { c1:'#20a060', c2:'#008080', c3:'#40d080', label:'Forest' },
+  { c1:'#006677', c2:'#00aacc', c3:'#aaddee', label:'Mono teal' },
+  { c1:'#f070f8', c2:'#a080e8', c3:'#40d8ff', label:'Pink cyan' },
+  { c1:'#cc2244', c2:'#880022', c3:'#ff6644', label:'Crimson' },
+];
+
+function buildSwatches() {
+  const cont = document.getElementById('swatches');
+  PRESETS.forEach((p, i) => {
+    const div = document.createElement('div');
+    div.className = 'grad-swatch' + (i === 0 ? ' active' : '');
+    div.title = p.label;
+    div.style.background = `linear-gradient(135deg, ${p.c1}, ${p.c2}, ${p.c3})`;
+    div.onclick = () => {
+      document.querySelectorAll('.grad-swatch').forEach((s,j) => s.classList.toggle('active', j===i));
+      document.getElementById('c1').value = p.c1; syncSwatch('c1','c1Btn');
+      document.getElementById('c2').value = p.c2; syncSwatch('c2','c2Btn');
+      document.getElementById('c3').value = p.c3; syncSwatch('c3','c3Btn');
+      render();
+    };
+    cont.appendChild(div);
+  });
+}
+
+function onCustomGradient() {
+  document.querySelectorAll('.grad-swatch').forEach(s => s.classList.remove('active'));
+  render();
+}
+
+// ── Type / bg change ──
+function onTypeChange() {
+  const sel = document.getElementById('imageType');
+  const opt = sel.options[sel.selectedIndex];
+  document.getElementById('canvasW').value = opt.dataset.w;
+  document.getElementById('canvasH').value = opt.dataset.h;
+  render();
+}
+
+function onBgChange() {
+  const v = document.getElementById('bgType').value;
+  document.getElementById('bgColorField').style.display = v === 'custom' ? 'flex' : 'none';
+  render();
+}
+
+function onBorderToggle() {
+  const on = document.getElementById('borderEnabled').checked;
+  document.getElementById('borderOptions').classList.toggle('visible', on);
+  render();
+}
+
+// ── Gradient helpers ──
+function getGradientCoords(dir, W, H) {
+  if (dir === 'tb')     return [0, 0, 0, H];
+  if (dir === 'diag')   return [0, 0, W, H];
+  if (dir === 'diagup') return [0, H, W, 0];
+  return [0, 0, W, 0];
+}
+
+function makeGrad(ctx, W, H) {
+  const c1  = document.getElementById('c1').value;
+  const c2  = document.getElementById('c2').value;
+  const c3  = document.getElementById('c3').value;
+  const dir = document.getElementById('gradDir').value;
+  const [gx0,gy0,gx1,gy1] = getGradientCoords(dir, W, H);
+  const g = ctx.createLinearGradient(gx0, gy0, gx1, gy1);
+  g.addColorStop(0,   c1);
+  g.addColorStop(0.5, c2);
+  g.addColorStop(1,   c3);
+  return g;
+}
+
+// ── Auto font size ──
+function calcFontSize(ctx, lines, W, H, fontFace) {
+  const manual = parseInt(document.getElementById('fontSize').value);
+  if (manual > 0) return manual;
+  const maxW = W - W * 0.08 * 2;
+  const maxH = H * 0.78;
+  let lo = 10, hi = Math.round(W * 0.9);
+  while (lo < hi - 1) {
+    const mid = Math.round((lo + hi) / 2);
+    ctx.font = `800 ${mid}px ${fontFace}`;
+    const totalH = (mid * 1.1) * lines.length;
+    const maxLine = Math.max(...lines.map(l => ctx.measureText(l).width));
+    if (maxLine <= maxW && totalH <= maxH) lo = mid; else hi = mid;
+  }
+  return lo;
+}
+
+// ── Draw ──
+function drawToContext(ctx, W, H, withBg) {
+  ctx.clearRect(0, 0, W, H);
+
+  // Background
+  if (withBg) {
+    const bgType = document.getElementById('bgType').value;
+    if (bgType !== 'transparent') {
+      let c = bgType === 'dark' ? '#101820' : bgType === 'custom' ? document.getElementById('bgColor').value : '#000000';
+      ctx.fillStyle = c;
+      ctx.fillRect(0, 0, W, H);
+    }
+  }
+
+  // Background image
+  if (bgImage) {
+    const fit        = document.getElementById('imgFit').value;
+    const opacity    = parseInt(document.getElementById('imgOpacity').value) / 100;
+    const blur       = parseInt(document.getElementById('imgBlur').value);
+    const brightness = parseInt(document.getElementById('imgBrightness').value);
+    const contrast   = parseInt(document.getElementById('imgContrast').value);
+    const saturate   = parseInt(document.getElementById('imgSaturate').value);
+    const blend      = document.getElementById('imgBlend').value;
+
+    ctx.save();
+    ctx.globalAlpha = opacity;
+    ctx.globalCompositeOperation = blend;
+
+    // Apply CSS-style filters via canvas filter
+    ctx.filter = `blur(${blur}px) brightness(${brightness}%) contrast(${contrast}%) saturate(${saturate}%)`;
+
+    const iw = bgImage.naturalWidth;
+    const ih = bgImage.naturalHeight;
+
+    if (fit === 'cover') {
+      const scale = Math.max(W / iw, H / ih);
+      const sw = iw * scale, sh = ih * scale;
+      ctx.drawImage(bgImage, (W - sw) / 2, (H - sh) / 2, sw, sh);
+    } else if (fit === 'contain') {
+      const scale = Math.min(W / iw, H / ih);
+      const sw = iw * scale, sh = ih * scale;
+      ctx.drawImage(bgImage, (W - sw) / 2, (H - sh) / 2, sw, sh);
+    } else if (fit === 'stretch') {
+      ctx.drawImage(bgImage, 0, 0, W, H);
+    } else if (fit === 'center') {
+      ctx.drawImage(bgImage, (W - iw) / 2, (H - ih) / 2, iw, ih);
+    } else if (fit === 'tile') {
+      ctx.filter = 'none'; // reset — createPattern doesn't support filter
+      const pat = ctx.createPattern(bgImage, 'repeat');
+      ctx.filter = `blur(${blur}px) brightness(${brightness}%) contrast(${contrast}%) saturate(${saturate}%)`;
+      ctx.fillStyle = pat;
+      ctx.fillRect(0, 0, W, H);
+    }
+
+    ctx.restore();
+
+    // Color overlay on top of image
+    if (document.getElementById('overlayEnabled').checked) {
+      const oc = document.getElementById('overlayColor').value;
+      const oa = parseInt(document.getElementById('overlayOpacity').value) / 100;
+      ctx.save();
+      ctx.globalAlpha = oa;
+      ctx.fillStyle   = oc;
+      ctx.fillRect(0, 0, W, H);
+      ctx.restore();
+    }
+  }
+
+  // Border
+  if (document.getElementById('borderEnabled').checked) {
+    const bw     = parseInt(document.getElementById('borderWidth').value) || 12;
+    const bstyle = document.getElementById('borderStyle').value;
+    const br     = parseInt(document.getElementById('borderRadius').value) || 0;
+    const half   = bw / 2; // inset by half so stroke stays inside canvas
+    ctx.save();
+    if (bstyle === 'gradient') {
+      ctx.strokeStyle = makeGrad(ctx, W, H);
+    } else if (bstyle === 'inset') {
+      ctx.strokeStyle = document.getElementById('borderColor').value;
+      ctx.shadowColor = document.getElementById('borderColor').value;
+      ctx.shadowBlur  = bw * 2;
+    } else {
+      ctx.strokeStyle = document.getElementById('borderColor').value;
+    }
+    ctx.lineWidth = bw;
+    ctx.beginPath();
+    if (br > 0 && ctx.roundRect) {
+      ctx.roundRect(half, half, W - bw, H - bw, br);
+    } else {
+      ctx.rect(half, half, W - bw, H - bw);
+    }
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // Text
+  const lines = Array.from(document.querySelectorAll('.line-input'))
+    .map(i => i.value.trim()).filter(v => v !== '');
+  if (lines.length === 0) return;
+
+  const fontFace  = document.getElementById('fontFace').value;
+  const alignPref = document.getElementById('textAlign').value;
+  const padding   = W * 0.08;
+  const fontSize  = calcFontSize(ctx, lines, W, H, fontFace);
+  const lineH     = fontSize * 1.1;
+  const totalH    = lineH * lines.length;
+  const startY    = (H - totalH) / 2 + fontSize * 0.85;
+  const xPos      = alignPref === 'center' ? W/2 : alignPref === 'left' ? padding : W - padding;
+
+  ctx.font      = `800 ${fontSize}px ${fontFace}`;
+  ctx.textAlign = alignPref;
+
+  lines.forEach((line, i) => {
+    const y = startY + i * lineH;
+    ctx.save();
+
+    if (currentTextStyle === 'gradient') {
+      ctx.fillStyle = makeGrad(ctx, W, H);
+      ctx.fillText(line, xPos, y);
+
+    } else if (currentTextStyle === 'solid') {
+      ctx.fillStyle = document.getElementById('solidColor').value;
+      ctx.fillText(line, xPos, y);
+
+    } else if (currentTextStyle === 'outline') {
+      const ow = parseInt(document.getElementById('outlineWidth').value) || 8;
+      ctx.lineWidth   = ow;
+      ctx.strokeStyle = document.getElementById('outlineStroke').value;
+      ctx.lineJoin    = 'round';
+      ctx.strokeText(line, xPos, y);
+      ctx.fillStyle = document.getElementById('outlineFill').value;
+      ctx.fillText(line, xPos, y);
+
+    } else if (currentTextStyle === 'shadow') {
+      const blur = parseInt(document.getElementById('shadowBlur').value) || 20;
+      ctx.shadowColor   = document.getElementById('shadowColor').value;
+      ctx.shadowBlur    = blur;
+      ctx.shadowOffsetX = fontSize * 0.04;
+      ctx.shadowOffsetY = fontSize * 0.04;
+      ctx.fillStyle = document.getElementById('shadowText').value;
+      ctx.fillText(line, xPos, y);
+
+    } else if (currentTextStyle === 'neon') {
+      const glow = document.getElementById('neonGlow').value;
+      const core = document.getElementById('neonCore').value;
+      // outer glow pass ×3
+      [fontSize*0.3, fontSize*0.15, fontSize*0.06].forEach((blur, pass) => {
+        ctx.shadowColor = glow;
+        ctx.shadowBlur  = blur;
+        ctx.fillStyle   = pass === 2 ? core : glow;
+        ctx.fillText(line, xPos, y);
+      });
+
+    } else if (currentTextStyle === 'stamp') {
+      const sw = parseInt(document.getElementById('stampWidth').value) || 12;
+      ctx.lineWidth   = sw;
+      ctx.strokeStyle = document.getElementById('stampStroke').value;
+      ctx.lineJoin    = 'round';
+      ctx.strokeText(line, xPos, y);
+      ctx.fillStyle = document.getElementById('stampFill').value;
+      ctx.fillText(line, xPos, y);
+    }
+
+    ctx.restore();
+  });
+}
+
+// ── Render preview ──
+function render() {
+  const W = parseInt(document.getElementById('canvasW').value) || 680;
+  const H = parseInt(document.getElementById('canvasH').value) || 1000;
+  const canvas = document.getElementById('poster-canvas');
+  canvas.width  = W;
+  canvas.height = H;
+
+  const pane   = document.querySelector('.preview-pane');
+  const availW = pane.clientWidth  - 48;
+  const availH = pane.clientHeight - 48;
+  const scale  = Math.min(1, availW / W, availH / H);
+  canvas.style.width  = Math.round(W * scale) + 'px';
+  canvas.style.height = Math.round(H * scale) + 'px';
+  document.getElementById('sizeBadge').textContent = W + ' × ' + H + ' px';
+
+  drawToContext(canvas.getContext('2d'), W, H, true);
+}
+
+// ── Export ──
+function exportPNG(transparent) {
+  const W = parseInt(document.getElementById('canvasW').value) || 680;
+  const H = parseInt(document.getElementById('canvasH').value) || 1000;
+  const off = document.createElement('canvas');
+  off.width = W; off.height = H;
+  drawToContext(off.getContext('2d'), W, H, !transparent);
+
+  const typeLabel = document.getElementById('imageType').value;
+  const textLabel = Array.from(document.querySelectorAll('.line-input'))
+    .map(i => i.value.trim()).filter(v => v).join('-').replace(/\s+/g,'_').toLowerCase();
+  const suffix = transparent ? '_transparent' : '';
+  const filename = `${textLabel || 'poster'}-${typeLabel}${suffix}.png`;
+
+  off.toBlob(blob => {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    a.click();
+  }, 'image/png');
+}
+
+// ── Init ──
+buildSwatches();
+render();
+window.addEventListener('resize', render);
+document.querySelectorAll('.line-input').forEach(el => el.addEventListener('input', render));
+</script>
+</body>
+</html>
