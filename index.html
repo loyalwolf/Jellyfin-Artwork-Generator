@@ -704,6 +704,63 @@ button.action:hover{opacity:.82}
     <button class="action btn-export-trans" onclick="batchExport(true)">&#8595; Batch Export (transparent)</button>
   </div>
 
+  <!-- Animated GIF Export -->
+  <div class="section">
+    <div class="section-title">Animated GIF Export</div>
+    <div class="toggle-row">
+      <label class="toggle"><input type="checkbox" id="gifEnabled"><div class="toggle-track"></div><div class="toggle-thumb"></div></label>
+      <span class="toggle-label" onclick="document.getElementById('gifEnabled').click()">Enable animation</span>
+    </div>
+    <p class="hint">Renders your design with an animated background layer, exported as a looping .gif.</p>
+    <div class="cond" id="gifOptions">
+      <div class="field"><label>Animation Type</label>
+        <select id="gifAnimType" onchange="gifPreviewUpdate()">
+          <option value="particles">Particle drift</option>
+          <option value="gradient-flow">Gradient flow</option>
+          <option value="scanlines">Scanlines / glitch</option>
+          <option value="noise">Noise static</option>
+          <option value="shapes">Geometric shapes</option>
+        </select>
+      </div>
+      <!-- Per-animation colour pickers -->
+      <div id="gifColorRow" class="row" style="margin-top:2px">
+        <div class="color-field"><span>Color A</span><div class="color-swatch-btn" id="gifC1Btn"><input type="color" id="gifC1" value="#00b4cc" oninput="syncSwatch('gifC1','gifC1Btn');gifPreviewUpdate()"><div class="swatch-preview" style="background:#00b4cc"></div></div></div>
+        <div class="color-field"><span>Color B</span><div class="color-swatch-btn" id="gifC2Btn"><input type="color" id="gifC2" value="#7b68ee" oninput="syncSwatch('gifC2','gifC2Btn');gifPreviewUpdate()"><div class="swatch-preview" style="background:#7b68ee"></div></div></div>
+      </div>
+      <div class="slider-row"><label>Speed</label><input type="range" id="gifSpeed" min="1" max="10" value="5" oninput="ss2('gifSpeed','gifSpeedVal');gifPreviewUpdate()"><span class="slider-val" id="gifSpeedVal">5</span></div>
+      <div class="slider-row"><label>Intensity</label><input type="range" id="gifIntensity" min="1" max="100" value="50" oninput="ss2('gifIntensity','gifIntensityVal');gifPreviewUpdate()"><span class="slider-val" id="gifIntensityVal">50</span></div>
+      <div class="section-title" style="margin-top:6px;margin-bottom:2px">Export Quality</div>
+      <div class="slider-row"><label>Frames</label><input type="range" id="gifFrames" min="6" max="60" value="20" oninput="ss2('gifFrames','gifFramesVal')"><span class="slider-val" id="gifFramesVal">20</span></div>
+      <div class="slider-row"><label>FPS</label><input type="range" id="gifFPS" min="4" max="30" value="12" oninput="ss2('gifFPS','gifFPSVal')"><span class="slider-val" id="gifFPSVal">12</span></div>
+      <div class="slider-row"><label>Colors</label><input type="range" id="gifColors" min="2" max="8" value="6" oninput="ss2('gifColors','gifColorsVal')"><span class="slider-val" id="gifColorsVal">6</span></div>
+      <div class="field" style="margin-top:4px"><label>Scale</label>
+        <select id="gifScale">
+          <option value="0.25">25% — smallest file</option>
+          <option value="0.5" selected>50% — balanced</option>
+          <option value="0.75">75% — high quality</option>
+          <option value="1.0">100% — full size</option>
+        </select>
+      </div>
+      <p class="hint" id="gifSizeHint">Estimated size: —</p>
+      <!-- Frame scrubber -->
+      <div style="margin-top:4px">
+        <div style="font-size:10px;font-weight:700;color:var(--label);text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px">Preview frame</div>
+        <div class="slider-row">
+          <input type="range" id="gifScrubber" min="0" max="99" value="0" style="flex:1" oninput="gifScrubFrame(this.value)">
+          <span class="slider-val" id="gifScrubVal">0%</span>
+        </div>
+        <p class="hint" style="margin-top:2px">Enable animation above — the main preview animates live. Scrub to inspect a specific frame.</p>
+      </div>
+      <div id="gifProgressWrap" style="display:none;margin-top:8px">
+        <div style="font-size:11px;color:var(--label);margin-bottom:4px" id="gifProgressLabel">Encoding…</div>
+        <div style="height:6px;background:var(--border);border-radius:3px;overflow:hidden">
+          <div id="gifProgressBar" style="height:100%;background:var(--accent);border-radius:3px;width:0%;transition:width .1s"></div>
+        </div>
+      </div>
+      <button class="action btn-export" style="margin-top:8px" id="gifExportBtn" onclick="exportGIF()">&#8595; Export Animated GIF</button>
+    </div>
+  </div>
+
   <!-- Export -->
   <div class="section">
     <div class="section-title">Export</div>
@@ -1196,6 +1253,29 @@ function drawToContext(ctx, W, H, withBg) {
 // ── Render ──
 var renderDebounce = null;
 function render() {
+  // If GIF preview is active, let the animation loop handle drawing
+  if (gc('gifEnabled')) {
+    // Just update sizing/badges without drawing, loop will redraw
+    var W = parseInt(document.getElementById('canvasW').value) || 680;
+    var H = parseInt(document.getElementById('canvasH').value) || 1000;
+    var canvas = document.getElementById('poster-canvas');
+    canvas.width = W; canvas.height = H;
+    var pane   = document.querySelector('.preview-pane');
+    var availW = pane.clientWidth  - 48;
+    var availH = pane.clientHeight - 48 - 32;
+    if (availW < 10) availW = 400; if (availH < 10) availH = 600;
+    var scale  = Math.min(1, availW/W, availH/H);
+    canvas.style.width  = Math.round(W * scale) + 'px';
+    canvas.style.height = Math.round(H * scale) + 'px';
+    document.getElementById('sizeBadge').textContent = W + ' x ' + H + ' px';
+    // Restart loop so seeds/params reset
+    gifDrawParticles._seeds = null;
+    gifDrawShapes._seeds = null;
+    gifStartLivePreview();
+    clearTimeout(renderDebounce);
+    renderDebounce = setTimeout(captureState, 600);
+    return;
+  }
   var W = parseInt(document.getElementById('canvasW').value) || 680;
   var H = parseInt(document.getElementById('canvasH').value) || 1000;
   var canvas = document.getElementById('poster-canvas');
@@ -1319,6 +1399,25 @@ document.addEventListener('DOMContentLoaded', function() {
   // Line inputs
   document.querySelectorAll('.line-input').forEach(function(el){ el.addEventListener('input', render); });
   document.querySelectorAll('.line2-input').forEach(function(el){ el.addEventListener('input', render); });
+
+  // GIF toggle
+  document.getElementById('gifEnabled').addEventListener('change', function(){
+    document.getElementById('gifOptions').classList.toggle('visible', this.checked);
+    if (this.checked) {
+      gifDrawParticles._seeds = null;
+      gifDrawShapes._seeds = null;
+      gifStartLivePreview();
+    } else {
+      gifStopLivePreview();
+      render(); // restore normal static render
+    }
+  });
+
+  // GIF size hint on param changes
+  ['gifFrames','gifFPS','gifColors','gifScale'].forEach(function(id){
+    document.getElementById(id).addEventListener('change', updateGifSizeHint);
+    document.getElementById(id).addEventListener('input', updateGifSizeHint);
+  });
 
   // New creative feature toggles
   ['textureEnabled','patternEnabled','shapeEnabled','duotoneEnabled'].forEach(function(id) {
@@ -1927,6 +2026,632 @@ function drawShape(ctx, W, H) {
     style === 'fill' ? ctx.fill() : ctx.stroke();
   }
   ctx.restore();
+}
+
+// ══════════════════════════════════════════════════════════════════
+// ── Animated GIF Engine ──────────────────────────────────────────
+// Self-contained: LZW encoder + GIF89a byte writer + animation draw
+// ══════════════════════════════════════════════════════════════════
+
+// ── Slider helper (raw value, no unit suffix) ──
+function ss2(id, labelId) {
+  document.getElementById(labelId).textContent = document.getElementById(id).value;
+}
+
+// ── GIF size hint ──
+function updateGifSizeHint() {
+  var W = (parseInt(document.getElementById('canvasW').value)||680);
+  var H = (parseInt(document.getElementById('canvasH').value)||1000);
+  var scale = parseFloat(document.getElementById('gifScale').value);
+  var frames = parseInt(document.getElementById('gifFrames').value);
+  var colorBits = parseInt(document.getElementById('gifColors').value);
+  var colors = Math.pow(2, colorBits);
+  var gW = Math.round(W * scale), gH = Math.round(H * scale);
+  // Rough estimate: pixels * colorBits/8 * frames * 0.6 compression factor
+  var bytes = gW * gH * (colorBits / 8) * frames * 0.6;
+  var label = bytes < 500000
+    ? Math.round(bytes/1024) + ' KB'
+    : (bytes/1048576).toFixed(1) + ' MB';
+  document.getElementById('gifSizeHint').textContent =
+    'Est. ' + gW + '×' + gH + ' · ' + frames + ' frames · ~' + label
+    + ' (' + colors + ' colors)';
+}
+
+// ── Animation frame draw functions ──
+// Each receives (ctx, W, H, t) where t = 0..1 progress through loop
+
+function gifDrawParticles(ctx, W, H, t, c1, c2, intensity, speed) {
+  // deterministic particles using seeded offsets
+  var count = Math.round(60 + intensity * 1.4);
+  var seeds = gifDrawParticles._seeds;
+  if (!seeds || seeds.length !== count * 4) {
+    seeds = [];
+    for (var i = 0; i < count * 4; i++) seeds.push(Math.random());
+    gifDrawParticles._seeds = seeds;
+  }
+  var spMult = (speed || 5) / 5; // normalise around 1.0
+  for (var i = 0; i < count; i++) {
+    var sx = seeds[i*4];
+    var sy = seeds[i*4+1];
+    var sp = (seeds[i*4+2] * 0.6 + 0.2) * spMult; // 0.2–0.8 * speed factor, full loop travel
+    var r  = seeds[i*4+3] * 3 + 1;
+    var x = (sx + sp * t + 10) % 1.0; // +10 to keep positive before mod
+    var y = (sy + sp * 0.4 * t + 10) % 1.0;
+    var frac = i / count;
+    var col = lerpHex(c1, c2, frac);
+    ctx.save();
+    ctx.globalAlpha = 0.55 + seeds[i*4+3] * 0.4;
+    ctx.fillStyle = col;
+    ctx.beginPath();
+    ctx.arc(x * W, y * H, r * (W / 680), 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+}
+gifDrawParticles._seeds = null;
+
+function gifDrawGradientFlow(ctx, W, H, t, c1, c2, intensity, speed) {
+  var spMult = (speed || 5) / 5;
+  var angle = t * Math.PI * 2 * spMult;
+  var cx = W / 2 + Math.cos(angle) * W * 0.35 * (intensity / 100);
+  var cy = H / 2 + Math.sin(angle) * H * 0.35 * (intensity / 100);
+  var grad = ctx.createRadialGradient(cx, cy, 0, W/2, H/2, Math.max(W,H) * 0.85);
+  grad.addColorStop(0, c1);
+  grad.addColorStop(0.5, c2);
+  grad.addColorStop(1, c1);
+  ctx.save();
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, W, H);
+  ctx.restore();
+}
+
+function gifDrawScanlines(ctx, W, H, t, c1, c2, intensity) {
+  var lineH = Math.max(2, Math.round(H / 60));
+  var offset = Math.round(t * H);
+  var alpha = 0.15 + (intensity / 100) * 0.5;
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  for (var y = 0; y < H + lineH * 2; y += lineH * 2) {
+    var yy = ((y + offset) % (H + lineH * 2)) - lineH;
+    ctx.fillStyle = c1;
+    ctx.fillRect(0, yy, W, lineH);
+  }
+  // glitch flash
+  if (intensity > 40 && (Math.floor(t * 30) % 7 === 0)) {
+    ctx.globalAlpha = 0.12;
+    ctx.fillStyle = c2;
+    var sliceY = Math.floor(t * H * 3.7) % H;
+    ctx.fillRect(0, sliceY, W, lineH * 3);
+  }
+  ctx.restore();
+}
+
+function gifDrawNoise(ctx, W, H, t, c1, c2, intensity, speed) {
+  var r1=parseInt(c1.slice(1,3),16), g1=parseInt(c1.slice(3,5),16), b1=parseInt(c1.slice(5,7),16);
+  var r2=parseInt(c2.slice(1,3),16), g2=parseInt(c2.slice(3,5),16), b2=parseInt(c2.slice(5,7),16);
+  var strength = intensity / 100;
+  var seed = Math.round(t * 9999) + 1;
+  var imageData = ctx.createImageData(W, H);
+  var d = imageData.data;
+  for (var i = 0; i < d.length; i += 4) {
+    // Fast hash per pixel+frame
+    var rng = (Math.sin(seed * 127.1 + (i / 4) * 311.7) * 43758.5453) % 1;
+    if (rng < 0) rng += 1;
+    var rng2 = (Math.sin(seed * 269.5 + (i / 4) * 183.3) * 43758.5453) % 1;
+    if (rng2 < 0) rng2 += 1;
+    // Mix c1 and c2 based on rng2, darken/lighten based on rng
+    var frac = rng2;
+    var brightness = 0.3 + rng * strength * 0.9;
+    d[i]   = Math.round((r1 + (r2 - r1) * frac) * brightness);
+    d[i+1] = Math.round((g1 + (g2 - g1) * frac) * brightness);
+    d[i+2] = Math.round((b1 + (b2 - b1) * frac) * brightness);
+    d[i+3] = 255;
+  }
+  ctx.putImageData(imageData, 0, 0);
+}
+
+function gifDrawShapes(ctx, W, H, t, c1, c2, intensity, speed) {
+  var count = Math.round(5 + intensity * 0.15);
+  var spMult = (speed || 5) / 5;
+  var seeds = gifDrawShapes._seeds;
+  if (!seeds || seeds.length !== count * 5) {
+    seeds = [];
+    for (var i = 0; i < count * 5; i++) seeds.push(Math.random());
+    gifDrawShapes._seeds = seeds;
+  }
+  for (var i = 0; i < count; i++) {
+    var baseX = seeds[i*5];
+    var baseY = seeds[i*5+1];
+    var spd   = seeds[i*5+2] * 0.6 + 0.2;
+    var size  = seeds[i*5+3] * 0.18 + 0.04;
+    var type  = Math.floor(seeds[i*5+4] * 3); // 0=circle, 1=rect, 2=triangle
+    var x = (baseX + spd * spMult * t + 10) % 1.0;
+    var y = (baseY + spd * 0.5 * spMult * t + 10) % 1.0;
+    var frac = i / count;
+    var col = lerpHex(c1, c2, frac);
+    var s = Math.min(W, H) * size;
+    ctx.save();
+    ctx.globalAlpha = 0.18 + seeds[i*5+3] * 0.22;
+    ctx.strokeStyle = col;
+    ctx.lineWidth = Math.max(1, W * 0.003);
+    ctx.beginPath();
+    if (type === 0) {
+      ctx.arc(x * W, y * H, s / 2, 0, Math.PI * 2);
+    } else if (type === 1) {
+      ctx.rect(x * W - s/2, y * H - s/4, s, s / 2);
+    } else {
+      ctx.moveTo(x * W, y * H - s/2);
+      ctx.lineTo(x * W + s/2, y * H + s/2);
+      ctx.lineTo(x * W - s/2, y * H + s/2);
+      ctx.closePath();
+    }
+    ctx.stroke();
+    ctx.restore();
+  }
+}
+gifDrawShapes._seeds = null;
+
+// ── Hex colour lerp ──
+function lerpHex(c1, c2, t) {
+  var r1=parseInt(c1.slice(1,3),16), g1=parseInt(c1.slice(3,5),16), b1=parseInt(c1.slice(5,7),16);
+  var r2=parseInt(c2.slice(1,3),16), g2=parseInt(c2.slice(3,5),16), b2=parseInt(c2.slice(5,7),16);
+  var r=Math.round(r1+(r2-r1)*t), g=Math.round(g1+(g2-g1)*t), b=Math.round(b1+(b2-b1)*t);
+  return '#'+('0'+r.toString(16)).slice(-2)+('0'+g.toString(16)).slice(-2)+('0'+b.toString(16)).slice(-2);
+}
+
+// ── Draw one animated frame onto a given canvas context ──
+// Returns true if this anim type is a full-background fill (goes under text)
+// Returns false if it's an overlay (goes on top of text)
+function gifIsBackgroundAnim() {
+  var t = document.getElementById('gifAnimType').value;
+  return t === 'gradient-flow' || t === 'noise';
+}
+
+function gifDrawAnimFrame(ctx, W, H, t) {
+  var animType  = document.getElementById('gifAnimType').value;
+  var c1        = document.getElementById('gifC1').value;
+  var c2        = document.getElementById('gifC2').value;
+  var intensity = parseInt(document.getElementById('gifIntensity').value);
+  var speed     = parseInt(document.getElementById('gifSpeed').value);
+  if (animType === 'particles')          gifDrawParticles(ctx, W, H, t, c1, c2, intensity, speed);
+  else if (animType === 'gradient-flow') gifDrawGradientFlow(ctx, W, H, t, c1, c2, intensity, speed);
+  else if (animType === 'scanlines')     gifDrawScanlines(ctx, W, H, t, c1, c2, intensity, speed);
+  else if (animType === 'noise')         gifDrawNoise(ctx, W, H, t, c1, c2, intensity, speed);
+  else if (animType === 'shapes')        gifDrawShapes(ctx, W, H, t, c1, c2, intensity, speed);
+}
+
+// ── Live preview strip (3 sample frames) ──
+var gifPreviewTimer = null;
+// ── GIF live preview: animates the main poster-canvas ──
+var gifAnimRAF = null;
+var gifAnimStart = null;
+
+function gifStartLivePreview() {
+  gifStopLivePreview();
+  gifDrawParticles._seeds = null;
+  gifDrawShapes._seeds = null;
+  var fps = parseInt(document.getElementById('gifFPS').value) || 12;
+  var totalFrames = parseInt(document.getElementById('gifFrames').value) || 20;
+  var duration = (totalFrames / fps) * 1000; // ms for one full loop
+
+  function loop(ts) {
+    if (!gifAnimStart) gifAnimStart = ts;
+    var elapsed = (ts - gifAnimStart) % duration;
+    var t = elapsed / duration;
+    gifRenderPreviewFrame(t);
+    // sync scrubber
+    var scrubber = document.getElementById('gifScrubber');
+    if (scrubber) {
+      scrubber.value = Math.round(t * 99);
+      document.getElementById('gifScrubVal').textContent = Math.round(t * 100) + '%';
+    }
+    gifAnimRAF = requestAnimationFrame(loop);
+  }
+  gifAnimRAF = requestAnimationFrame(loop);
+}
+
+function gifStopLivePreview() {
+  if (gifAnimRAF) { cancelAnimationFrame(gifAnimRAF); gifAnimRAF = null; }
+  gifAnimStart = null;
+}
+
+// ── Draw only non-background design layers onto an existing ctx ──
+// Used when the anim IS the background — we draw it first, then all design
+// elements on top using an offscreen canvas to avoid clearRect wiping it.
+function drawDesignNoBackground(ctx, W, H) {
+  var off = document.createElement('canvas');
+  off.width = W; off.height = H;
+  // drawToContext with withBg=false skips the solid/gradient bg fill
+  // but clearRect on the offscreen canvas is fine — it's separate
+  drawToContext(off.getContext('2d'), W, H, false);
+  ctx.drawImage(off, 0, 0);
+}
+
+function gifRenderPreviewFrame(t) {
+  var W = parseInt(document.getElementById('canvasW').value) || 680;
+  var H = parseInt(document.getElementById('canvasH').value) || 1000;
+  var canvas = document.getElementById('poster-canvas');
+  var ctx = canvas.getContext('2d');
+  var isBg = gifIsBackgroundAnim();
+
+  // Build composite on an offscreen canvas, then blit to main in one shot
+  var comp = document.createElement('canvas');
+  comp.width = W; comp.height = H;
+  var cCtx = comp.getContext('2d');
+
+  if (isBg) {
+    // 1. Draw anim as the background layer
+    gifDrawAnimFrame(cCtx, W, H, t);
+    // 2. Draw all design elements (no bg fill) on top
+    drawDesignNoBackground(cCtx, W, H);
+  } else {
+    // 1. Draw full design (including its background)
+    drawToContext(cCtx, W, H, true);
+    // 2. Draw anim overlay on top
+    var animOff = document.createElement('canvas');
+    animOff.width = W; animOff.height = H;
+    gifDrawAnimFrame(animOff.getContext('2d'), W, H, t);
+    cCtx.drawImage(animOff, 0, 0);
+  }
+
+  ctx.clearRect(0, 0, W, H);
+  ctx.drawImage(comp, 0, 0);
+}
+
+function gifScrubFrame(val) {
+  // Pause live loop while scrubbing
+  gifStopLivePreview();
+  var t = parseInt(val) / 99;
+  document.getElementById('gifScrubVal').textContent = Math.round(t * 100) + '%';
+  gifRenderPreviewFrame(t);
+}
+
+function gifPreviewUpdate() {
+  updateGifSizeHint();
+  if (document.getElementById('gifEnabled').checked) {
+    gifDrawParticles._seeds = null;
+    gifDrawShapes._seeds = null;
+    gifStartLivePreview();
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════
+// ── Pure-JS GIF89a Encoder ────────────────────────────────────────
+// Writes proper GIF89a binary with Netscape loop extension.
+// Uses median-cut colour quantisation per frame.
+// ══════════════════════════════════════════════════════════════════
+
+function GIFEncoder() {}
+
+GIFEncoder.prototype.encode = function(frames, W, H, colorBits, delayCs, onProgress) {
+  // colorBits 2..8 → 4..256 colours
+  var numColors = Math.pow(2, colorBits);
+  var out = [];
+
+  // GIF header
+  this._writeString(out, 'GIF89a');
+  this._writeWord(out, W);
+  this._writeWord(out, H);
+  // Global Color Table Flag=0 (we use per-frame local tables)
+  out.push(0x00, 0x00, 0x00);
+
+  // Netscape loop extension (loop forever)
+  out.push(0x21, 0xFF, 0x0B);
+  this._writeString(out, 'NETSCAPE2.0');
+  out.push(0x03, 0x01, 0x00, 0x00, 0x00);
+
+  var total = frames.length;
+  for (var fi = 0; fi < total; fi++) {
+    if (onProgress) onProgress(fi / total);
+    var pixels = frames[fi]; // Uint8ClampedArray RGBA W×H
+
+    // Quantise to numColors palette
+    var result = this._quantize(pixels, W, H, numColors);
+    var palette = result.palette; // flat [r,g,b, r,g,b, ...]
+    var indices = result.indices; // Uint8Array length W*H
+
+    // Pad palette to power-of-2 length = numColors
+    while (palette.length < numColors * 3) palette.push(0);
+
+    // Graphic Control Extension
+    out.push(0x21, 0xF9, 0x04);
+    out.push(0x00); // no transparency
+    this._writeWord(out, delayCs);
+    out.push(0x00, 0x00);
+
+    // Image descriptor
+    out.push(0x2C);
+    this._writeWord(out, 0); this._writeWord(out, 0);
+    this._writeWord(out, W); this._writeWord(out, H);
+    // Local color table flag=1, size=colorBits-1
+    out.push(0x80 | (colorBits - 1));
+
+    // Local colour table
+    for (var ci = 0; ci < numColors; ci++) {
+      out.push(palette[ci*3]||0, palette[ci*3+1]||0, palette[ci*3+2]||0);
+    }
+
+    // LZW compressed image data
+    var minCode = Math.max(2, colorBits);
+    var lzw = this._lzwEncode(indices, minCode);
+    out.push(minCode);
+    // Write in 255-byte sub-blocks
+    for (var pos = 0; pos < lzw.length; pos += 255) {
+      var chunk = lzw.slice(pos, pos + 255);
+      out.push(chunk.length);
+      for (var bi = 0; bi < chunk.length; bi++) out.push(chunk[bi]);
+    }
+    out.push(0x00); // block terminator
+  }
+  if (onProgress) onProgress(1);
+
+  out.push(0x3B); // GIF trailer
+  return new Uint8Array(out);
+};
+
+// ── Median-cut colour quantisation ──
+GIFEncoder.prototype._quantize = function(pixels, W, H, numColors) {
+  var total = W * H;
+  // Collect unique colours (sample up to 8000 pixels for speed)
+  var step = Math.max(1, Math.round(total / 8000));
+  var colorMap = {};
+  var colorList = [];
+  for (var i = 0; i < total; i += step) {
+    var r = pixels[i*4], g = pixels[i*4+1], b = pixels[i*4+2];
+    // Reduce precision slightly for better grouping
+    r = r >> 1 << 1; g = g >> 1 << 1; b = b >> 1 << 1;
+    var key = (r << 16) | (g << 8) | b;
+    if (!colorMap[key]) { colorMap[key] = 0; colorList.push(key); }
+    colorMap[key]++;
+  }
+
+  // Build initial bucket
+  var buckets = [colorList];
+  while (buckets.length < numColors && buckets.length > 0) {
+    // Find widest bucket
+    var widest = 0, widestRange = -1;
+    for (var bi = 0; bi < buckets.length; bi++) {
+      if (buckets[bi].length < 2) continue;
+      var range = this._bucketRange(buckets[bi]);
+      if (range.max > widestRange) { widestRange = range.max; widest = bi; }
+    }
+    if (widestRange < 0) break;
+    var split = this._splitBucket(buckets[widest]);
+    buckets.splice(widest, 1, split[0], split[1]);
+  }
+
+  // Build palette as bucket averages
+  var palette = [];
+  var bucketForColor = {};
+  for (var bi = 0; bi < buckets.length; bi++) {
+    var rSum=0, gSum=0, bSum=0, cnt=0;
+    for (var ci = 0; ci < buckets[bi].length; ci++) {
+      var key2 = buckets[bi][ci];
+      var w2 = colorMap[key2] || 1;
+      rSum += ((key2 >> 16) & 0xFF) * w2;
+      gSum += ((key2 >> 8)  & 0xFF) * w2;
+      bSum += ( key2        & 0xFF) * w2;
+      cnt  += w2;
+      bucketForColor[key2] = bi;
+    }
+    palette.push(Math.round(rSum/cnt), Math.round(gSum/cnt), Math.round(bSum/cnt));
+  }
+  // Pad
+  while (palette.length < numColors * 3) palette.push(0);
+
+  // Map every pixel to nearest palette entry
+  var indices = new Uint8Array(total);
+  // Build lookup cache
+  var cache = {};
+  for (var i = 0; i < total; i++) {
+    var r = pixels[i*4], g = pixels[i*4+1], b = pixels[i*4+2];
+    var rr = r >> 1 << 1, gg = g >> 1 << 1, bb = b >> 1 << 1;
+    var key3 = (rr << 16) | (gg << 8) | bb;
+    var idx = cache[key3];
+    if (idx === undefined) {
+      // Check bucket first
+      var bi2 = bucketForColor[key3];
+      if (bi2 !== undefined) {
+        idx = bi2;
+      } else {
+        // Nearest in palette
+        var best = 0, bestD = 1e9;
+        for (var pi = 0; pi < buckets.length; pi++) {
+          var pr=palette[pi*3], pg=palette[pi*3+1], pb2=palette[pi*3+2];
+          var d = (r-pr)*(r-pr)+(g-pg)*(g-pg)+(b-pb2)*(b-pb2);
+          if (d < bestD) { bestD = d; best = pi; }
+        }
+        idx = best;
+      }
+      cache[key3] = idx;
+    }
+    indices[i] = idx;
+  }
+  return { palette: palette, indices: indices };
+};
+
+GIFEncoder.prototype._bucketRange = function(bucket) {
+  var rMin=255,rMax=0,gMin=255,gMax=0,bMin=255,bMax=0;
+  for (var i=0;i<bucket.length;i++){
+    var k=bucket[i];
+    var r=(k>>16)&0xFF, g=(k>>8)&0xFF, b=k&0xFF;
+    if(r<rMin)rMin=r; if(r>rMax)rMax=r;
+    if(g<gMin)gMin=g; if(g>gMax)gMax=g;
+    if(b<bMin)bMin=b; if(b>bMax)bMax=b;
+  }
+  var rR=rMax-rMin, gR=gMax-gMin, bR=bMax-bMin;
+  var axis = rR>=gR&&rR>=bR?'r':gR>=bR?'g':'b';
+  return { max: Math.max(rR,gR,bR), axis: axis };
+};
+
+GIFEncoder.prototype._splitBucket = function(bucket) {
+  var range = this._bucketRange(bucket);
+  var axis  = range.axis;
+  var shift = axis==='r'?16:axis==='g'?8:0;
+  bucket.sort(function(a,b){ return ((a>>shift)&0xFF)-((b>>shift)&0xFF); });
+  var mid = Math.floor(bucket.length / 2);
+  return [bucket.slice(0, mid), bucket.slice(mid)];
+};
+
+// ── LZW encoder ──
+GIFEncoder.prototype._lzwEncode = function(indices, minCode) {
+  var clearCode = 1 << minCode;
+  var eofCode   = clearCode + 1;
+  var codeSize  = minCode + 1;
+  var maxCode   = (1 << codeSize);
+  var output    = [];
+  var bits      = 0, buf = 0;
+
+  function writeBits(code) {
+    buf |= code << bits;
+    bits += codeSize;
+    while (bits >= 8) { output.push(buf & 0xFF); buf >>= 8; bits -= 8; }
+  }
+
+  // Integer hash table: key = (parentCode << 8) | childByte -> newCode
+  // Much faster and unambiguous vs string keys
+  var table = {};
+  var nextCode;
+
+  function resetTable() {
+    table    = {};
+    codeSize = minCode + 1;
+    maxCode  = (1 << codeSize);
+    nextCode = eofCode + 1;
+  }
+
+  resetTable();
+  writeBits(clearCode);
+
+  var prefix = indices[0];   // integer code, starts as raw pixel index
+  for (var i = 1; i < indices.length; i++) {
+    var c   = indices[i];
+    var key = (prefix << 8) | c;
+    if (table[key] !== undefined) {
+      prefix = table[key];
+    } else {
+      writeBits(prefix);
+      if (nextCode < 4096) {
+        table[key] = nextCode;
+        nextCode++;
+        // Encoder uses strict > so browser decoder (which uses >=) stays in sync
+        if (nextCode > maxCode) {
+          codeSize++; maxCode = (1 << codeSize);
+          if (codeSize > 12) { writeBits(clearCode); resetTable(); }
+        }
+      }
+      prefix = c;
+    }
+  }
+  writeBits(prefix);
+  writeBits(eofCode);
+  if (bits > 0) output.push(buf & 0xFF);
+  return output;
+};
+
+GIFEncoder.prototype._writeString = function(out, s) {
+  for (var i = 0; i < s.length; i++) out.push(s.charCodeAt(i));
+};
+GIFEncoder.prototype._writeWord = function(out, w) {
+  out.push(w & 0xFF); out.push((w >> 8) & 0xFF);
+};
+
+// ── Main export function ──
+function exportGIF() {
+  var W = parseInt(document.getElementById('canvasW').value)||680;
+  var H = parseInt(document.getElementById('canvasH').value)||1000;
+  var scale      = parseFloat(document.getElementById('gifScale').value);
+  var totalFrames= parseInt(document.getElementById('gifFrames').value);
+  var fps        = parseInt(document.getElementById('gifFPS').value);
+  var colorBits  = parseInt(document.getElementById('gifColors').value);
+  var gW = Math.round(W * scale);
+  var gH = Math.round(H * scale);
+  var delayCs = Math.round(100 / fps); // GIF delay in 1/100s units
+
+  // Reset seeds so each export is consistent
+  gifDrawParticles._seeds = null;
+  gifDrawShapes._seeds = null;
+
+  // Pause live preview during export
+  gifStopLivePreview();
+
+  var btn = document.getElementById('gifExportBtn');
+  btn.disabled = true;
+  btn.textContent = 'Encoding…';
+  document.getElementById('gifProgressWrap').style.display = 'block';
+
+  // Draw base design once at full res
+  var baseCanvas = document.createElement('canvas');
+  baseCanvas.width = W; baseCanvas.height = H;
+  drawToContext(baseCanvas.getContext('2d'), W, H, true);
+
+  // Render frames asynchronously to keep UI alive
+  var frames = [];
+  var offCanvas = document.createElement('canvas');
+  offCanvas.width = gW; offCanvas.height = gH;
+  var offCtx = offCanvas.getContext('2d');
+
+  function renderFrame(fi) {
+    if (fi >= totalFrames) {
+      encodeAndDownload();
+      return;
+    }
+    var t = fi / totalFrames;
+    var isBg = gifIsBackgroundAnim();
+    offCtx.clearRect(0, 0, gW, gH);
+
+    var animCanvas = document.createElement('canvas');
+    animCanvas.width = gW; animCanvas.height = gH;
+    gifDrawAnimFrame(animCanvas.getContext('2d'), gW, gH, t);
+
+    if (isBg) {
+      // Anim is the background — draw it first
+      offCtx.drawImage(animCanvas, 0, 0);
+      // Then draw design elements (no bg) at full res scaled down
+      var fullDesign = document.createElement('canvas');
+      fullDesign.width = W; fullDesign.height = H;
+      drawToContext(fullDesign.getContext('2d'), W, H, false);
+      offCtx.drawImage(fullDesign, 0, 0, gW, gH);
+    } else {
+      // Design first (with bg), anim overlay on top
+      offCtx.drawImage(baseCanvas, 0, 0, gW, gH);
+      offCtx.drawImage(animCanvas, 0, 0);
+    }
+
+    frames.push(new Uint8ClampedArray(offCtx.getImageData(0, 0, gW, gH).data));
+
+    var pct = Math.round((fi+1) / totalFrames * 80);
+    document.getElementById('gifProgressBar').style.width = pct + '%';
+    document.getElementById('gifProgressLabel').textContent = 'Rendering frame ' + (fi+1) + ' / ' + totalFrames + '…';
+    setTimeout(function(){ renderFrame(fi + 1); }, 0);
+  }
+
+  function encodeAndDownload() {
+    document.getElementById('gifProgressLabel').textContent = 'Encoding GIF…';
+    setTimeout(function() {
+      var encoder = new GIFEncoder();
+      var gifData = encoder.encode(frames, gW, gH, colorBits, delayCs, function(p) {
+        document.getElementById('gifProgressBar').style.width = Math.round(80 + p * 20) + '%';
+      });
+      var blob = new Blob([gifData], { type: 'image/gif' });
+      var textLabel = Array.from(document.querySelectorAll('.line-input'))
+        .map(function(i){ return i.value.trim(); }).filter(function(v){ return v; })
+        .join('-').replace(/\s+/g,'_').toLowerCase();
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = (textLabel||'poster') + '-animated.gif';
+      a.click();
+      document.getElementById('gifProgressWrap').style.display = 'none';
+      document.getElementById('gifProgressBar').style.width = '0%';
+      btn.disabled = false;
+      btn.textContent = '↓ Export Animated GIF';
+      // Restart live preview
+      if (gc('gifEnabled')) gifStartLivePreview();
+    }, 0);
+  }
+
+  renderFrame(0);
 }
 
 window.addEventListener('resize', render);
