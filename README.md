@@ -10,11 +10,18 @@ A free, browser-based tool for creating custom artwork for your [Jellyfin](https
 
 - **All Jellyfin image types** — Primary, Backdrop, Banner, Thumb, Logo, Clearart, Box, Disc, and custom dimensions
 - **Live preview** — changes render instantly as you type or adjust settings
-- **Background image support** — upload any image with full control over opacity, blur, brightness, contrast, saturation, blend mode, and color overlay
+- **30 fonts** across 7 categories — Rounded & Friendly, Bold & Display, Sci-Fi & Tech, Elegant & Serif, Handwritten & Fun, Retro & Pixel, System
 - **6 text styles** — Gradient, Solid, Outline, Shadow, Neon, Stamp
-- **Gradient presets** — 8 curated presets with full custom color control (3-stop gradients, 4 directions)
+- **Text positioning** — 9-point anchor grid with X/Y offset sliders
+- **Second text layer** — independent font, size, color, alignment and position (great for subtitles, years, episode labels)
+- **Gradient presets** — 8 curated presets with full custom 3-stop gradient control and 4 direction options
+- **Background image** — upload any photo with opacity, blur, brightness, contrast, saturation, blend mode, and color overlay controls
+- **Background gradient** — 3-stop gradient background with 5 directions including radial
+- **Vignette effect** — radial dark edge with intensity, spread, and color controls
+- **Logo/overlay image** — upload a second image (e.g. network logo) with 9-point positioning, size, opacity, and padding
+- **Corner badge** — preset labels (4K, HDR, HDR10, DV, DUBBED, SUBBED, EXTENDED, UNRATED, NEW) or fully custom text
 - **Border options** — color, width, corner radius, and style (solid, gradient-matched, inset glow)
-- **PNG export** — export at full resolution with or without background (transparent export ideal for Logo and Clearart types)
+- **PNG export** — full resolution with or without background (transparent export ideal for Logo and Clearart)
 - **Auto font sizing** — text scales automatically to fill the canvas, or set a fixed size manually
 - **No internet required** — works fully offline once the page is loaded
 
@@ -39,41 +46,53 @@ A free, browser-based tool for creating custom artwork for your [Jellyfin](https
 ## 🚀 How to Use
 
 ### 1. Choose your image type
-Select from the **Image Type** dropdown. The canvas dimensions update automatically. You can also override the width and height manually for custom sizes.
+Select from the **Image Type** dropdown. Canvas dimensions update automatically. Override width and height manually for custom sizes.
 
 ### 2. Set a background
-Choose from:
 - **Black** — clean black background
 - **Transparent** — no background (best for Logo and Clearart)
 - **Dark teal** — matches Jellyfin's UI palette
-- **Custom color** — pick any color
-- **Image** — upload a photo or artwork (see [Background Image](#background-image) below)
+- **Custom color** — any color via picker
+- **Background gradient** — 3-stop gradient with direction control
+- **Background image** — upload a photo or artwork (see [Background Image](#️-background-image) below)
 
 ### 3. Add your text
-Type up to 4 lines of text. Each line is independent — leave a box empty to skip it. Text auto-scales to fill the canvas, or enter a fixed font size to lock it.
+Type up to 4 lines of text. Each line is independent — leave a box empty to skip it. Text auto-scales to fill the canvas, or enter a fixed font size to lock it. Use the **Text Position** section to move the text block anywhere on the canvas using the 9-point anchor grid and X/Y offset sliders.
 
 ### 4. Pick a text style
+
 | Style | Description |
 |-------|-------------|
-| **Gradient** | Multi-color gradient across the text. Choose from presets or pick 3 custom colors with direction control |
+| **Gradient** | Multi-color gradient across the text — choose from presets or pick 3 custom colors with direction control |
 | **Solid** | Flat single color |
-| **Outline** | Hollow text with a colored stroke. Adjustable fill, stroke color, and thickness |
-| **Shadow** | Text with a soft drop shadow. Adjustable shadow color and blur radius |
+| **Outline** | Hollow text with a colored stroke — adjustable fill, stroke color, and thickness |
+| **Shadow** | Text with a soft drop shadow — adjustable shadow color and blur radius |
 | **Neon** | Bright core with layered glow effect — best on dark backgrounds |
 | **Stamp** | Bold fill with thick contrasting stroke, like a screen-print or rubber stamp |
 
-### 5. Add a border (optional)
-Enable the border toggle and configure:
+### 5. Add a second text layer (optional)
+Enable the **Second Text Layer** toggle to add an independent block of text — perfect for a subtitle, year, season label, or any supporting copy. Has its own font, size, alignment, color, opacity, and position relative to the main text (above, below, or pinned to top/bottom of canvas).
+
+### 6. Add a border (optional)
 - **Width** — thickness in pixels
 - **Color** — any color via the picker
 - **Corner radius** — 0 for sharp corners, higher values for rounded
 - **Style** — Solid, Gradient (matches your text gradient), or Inset Glow
 
-### 6. Export
-- **Export PNG (with background)** — full image including background color/image
-- **Export PNG (transparent bg)** — text and border only, no background
+### 7. Add a vignette (optional)
+Enable the **Vignette** toggle to add a radial dark gradient from the edges inward. Adjustable intensity, spread, and color. Rendered before text so it darkens the background without affecting your typography.
 
-Files are automatically named based on your text and image type, e.g. `series-primary.png`.
+### 8. Add a logo or overlay image (optional)
+Enable **Logo / Overlay Image** to upload a second image — a network logo, show logo, or any PNG. Position it using the 9-point grid, and control size (as % of canvas), opacity, and edge padding. Transparent PNGs work perfectly here.
+
+### 9. Add a corner badge (optional)
+Enable the **Corner Badge** to stamp a label on any corner. Choose from quick presets or type custom text. Configure corner, size, background color, and text color.
+
+### 10. Export
+- **Export PNG (with background)** — full image including all layers and background
+- **Export PNG (transparent bg)** — removes the background, text and overlays only
+
+Files are automatically named based on your text and image type, e.g. `thai-gl-series-primary.png`.
 
 ---
 
@@ -99,17 +118,36 @@ Upload any image (JPG, PNG, WebP, etc.) by clicking the drop zone or dragging a 
 - **Blend mode** — Normal, Multiply, Screen, Overlay, Soft Light, Hard Light, Color Dodge, Color Burn, Luminosity
 
 ### Color overlay
-Enable the color overlay toggle to add a flat color on top of the image before drawing text. Useful for darkening a busy photo so your text stays readable. Has its own color picker and opacity slider.
+Enable the color overlay toggle to add a flat color layer on top of the image before drawing text. Useful for darkening a busy photo so your text stays readable. Has its own color picker and opacity slider.
+
+---
+
+## 🔤 Fonts
+
+30 fonts organised into categories:
+
+| Category | Fonts |
+|----------|-------|
+| Rounded & Friendly | Nunito, Righteous, Boogaloo |
+| Bold & Display | Bebas Neue, Oswald, Anton, Russo One, Teko, Bangers, Abril Fatface, Alfa Slab One, Impact |
+| Sci-Fi & Tech | Orbitron, Exo 2, Chakra Petch, Rajdhani, Kanit |
+| Elegant & Serif | Cinzel, Playfair Display, Merriweather, Bree Serif, Georgia |
+| Handwritten & Fun | Permanent Marker, Lobster, Creepster |
+| Retro & Pixel | Press Start 2P, VT323, Courier New |
+| System | Arial Rounded |
 
 ---
 
 ## 💡 Tips
 
-- **For Logo and Clearart types**, use transparent export and a transparent or no background — these image types are designed to overlay on top of backdrops in Jellyfin
-- **Neon style** works best with a pure black background and a dark-colored glow
-- **Gradient border style** automatically matches whatever gradient you've set for your text, keeping everything cohesive
-- **Backdrop images** (1920×1080) work well with a background photo + dark overlay + solid or shadow text
-- The **font size field** accepts any value — useful when you want consistent sizing across multiple exports
+- **For Logo and Clearart types**, use transparent export with no background — these are designed to overlay on top of backdrops in Jellyfin
+- **Neon style** works best with a pure black background and a vivid glow color
+- **Gradient border** automatically matches your text gradient, keeping everything cohesive
+- **Backdrop art** (1920×1080) works great with a background photo + dark color overlay + shadow or solid text
+- **Second text layer** is perfect for adding a year or episode count in a smaller, lighter font below your main title
+- **Logo overlay** with a transparent PNG in the bottom corner is a clean way to brand collection art consistently
+- **Corner badges** like 4K or DUBBED are useful for collection posters where you want the format visible at a glance
+- The **font size field** accepts any value — useful when you want consistent sizing across multiple exports for the same collection
 
 ---
 
@@ -121,7 +159,7 @@ Pure HTML, CSS, and vanilla JavaScript — no frameworks, no dependencies, no bu
 
 ## 🤝 Contributing
 
-Contributions, suggestions, and bug reports are welcome. Open an issue.
+Contributions, suggestions, and bug reports are welcome. Open an issue or submit a pull request.
 
 ---
 
