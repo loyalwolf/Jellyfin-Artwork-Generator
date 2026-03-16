@@ -268,6 +268,27 @@ button.action:hover{opacity:.82}
       </div>
       <button class="action btn-export" onclick="clearImage()">✕ Remove image</button>
     </div>
+    <!-- Animated GIF Background Import -->
+    <div class="section-title" style="margin-top:8px">Animated GIF Background</div>
+    <div class="drop-zone" id="gifBgDropZone">
+      <input type="file" id="gifBgInput" accept="image/gif" onchange="onGifBgLoad(this)">
+      <div class="dz-icon">🎞️</div>
+      <div class="dz-label">Click or drag a .gif file here</div>
+      <div class="dz-name" id="gifBgName" style="display:none"></div>
+    </div>
+    <div class="cond" id="gifBgOptions">
+      <div class="slider-row"><label>Opacity</label><input type="range" id="gifBgOpacity" min="0" max="100" value="100" oninput="ss('gifBgOpacity','gifBgOpacityVal');gifBgUpdate()"><span class="slider-val" id="gifBgOpacityVal">100%</span></div>
+      <div class="slider-row"><label>Blur</label><input type="range" id="gifBgBlur" min="0" max="40" value="0" oninput="ss('gifBgBlur','gifBgBlurVal');gifBgUpdate()"><span class="slider-val" id="gifBgBlurVal">0px</span></div>
+      <div class="field"><label>Fit</label>
+        <select id="gifBgFit" onchange="gifBgUpdate()">
+          <option value="cover">Cover</option>
+          <option value="contain">Contain</option>
+          <option value="stretch">Stretch</option>
+        </select>
+      </div>
+      <p class="hint">The GIF animates live in the preview. On export, its frames are used as the base — all design elements and animation overlays are composited on top.</p>
+      <button class="action btn-export" onclick="clearGifBg()">✕ Remove GIF</button>
+    </div>
   </div>
 
   <!-- Vignette -->
@@ -707,11 +728,35 @@ button.action:hover{opacity:.82}
   <!-- Animated GIF Export -->
   <div class="section">
     <div class="section-title">Animated GIF Export</div>
+
+    <!-- Export imported GIF — always shown when a GIF bg is loaded -->
+    <div id="gifBgExportSection" style="display:none">
+      <p class="hint">Export your imported GIF with all design elements (text, logo, badges, vignette etc.) baked in.</p>
+      <div class="slider-row"><label>Colors</label><input type="range" id="gifBgColors" min="2" max="8" value="7" oninput="ss2('gifBgColors','gifBgColorsVal')"><span class="slider-val" id="gifBgColorsVal">7</span></div>
+      <div class="field" style="margin-top:4px"><label>Scale</label>
+        <select id="gifBgScale">
+          <option value="0.25">25% — smallest file</option>
+          <option value="0.5">50% — balanced</option>
+          <option value="0.75">75% — high quality</option>
+          <option value="1.0" selected>100% — full size</option>
+        </select>
+      </div>
+      <div id="gifBgProgressWrap" style="display:none;margin-top:8px">
+        <div style="font-size:11px;color:var(--label);margin-bottom:4px" id="gifBgProgressLabel">Encoding…</div>
+        <div style="height:6px;background:var(--border);border-radius:3px;overflow:hidden">
+          <div id="gifBgProgressBar" style="height:100%;background:var(--accent);border-radius:3px;width:0%;transition:width .1s"></div>
+        </div>
+      </div>
+      <button class="action btn-export" style="margin-top:8px" id="gifBgExportBtn" onclick="exportGifBackground()">&#8595; Export GIF with design</button>
+      <div style="border-top:1px solid var(--border);margin:12px 0"></div>
+    </div>
+
+    <!-- Synthetic animation overlay -->
     <div class="toggle-row">
       <label class="toggle"><input type="checkbox" id="gifEnabled"><div class="toggle-track"></div><div class="toggle-thumb"></div></label>
-      <span class="toggle-label" onclick="document.getElementById('gifEnabled').click()">Enable animation</span>
+      <span class="toggle-label" onclick="document.getElementById('gifEnabled').click()">Add animation overlay</span>
     </div>
-    <p class="hint">Renders your design with an animated background layer, exported as a looping .gif.</p>
+    <p class="hint">Adds a generated animation layer (particles, gradient etc.) on top of your design.</p>
     <div class="cond" id="gifOptions">
       <div class="field"><label>Animation Type</label>
         <select id="gifAnimType" onchange="gifPreviewUpdate()">
@@ -722,7 +767,6 @@ button.action:hover{opacity:.82}
           <option value="shapes">Geometric shapes</option>
         </select>
       </div>
-      <!-- Per-animation colour pickers -->
       <div id="gifColorRow" class="row" style="margin-top:2px">
         <div class="color-field"><span>Color A</span><div class="color-swatch-btn" id="gifC1Btn"><input type="color" id="gifC1" value="#00b4cc" oninput="syncSwatch('gifC1','gifC1Btn');gifPreviewUpdate()"><div class="swatch-preview" style="background:#00b4cc"></div></div></div>
         <div class="color-field"><span>Color B</span><div class="color-swatch-btn" id="gifC2Btn"><input type="color" id="gifC2" value="#7b68ee" oninput="syncSwatch('gifC2','gifC2Btn');gifPreviewUpdate()"><div class="swatch-preview" style="background:#7b68ee"></div></div></div>
@@ -742,15 +786,6 @@ button.action:hover{opacity:.82}
         </select>
       </div>
       <p class="hint" id="gifSizeHint">Estimated size: —</p>
-      <!-- Frame scrubber -->
-      <div style="margin-top:4px">
-        <div style="font-size:10px;font-weight:700;color:var(--label);text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px">Preview frame</div>
-        <div class="slider-row">
-          <input type="range" id="gifScrubber" min="0" max="99" value="0" style="flex:1" oninput="gifScrubFrame(this.value)">
-          <span class="slider-val" id="gifScrubVal">0%</span>
-        </div>
-        <p class="hint" style="margin-top:2px">Enable animation above — the main preview animates live. Scrub to inspect a specific frame.</p>
-      </div>
       <div id="gifProgressWrap" style="display:none;margin-top:8px">
         <div style="font-size:11px;color:var(--label);margin-bottom:4px" id="gifProgressLabel">Encoding…</div>
         <div style="height:6px;background:var(--border);border-radius:3px;overflow:hidden">
@@ -1101,7 +1136,7 @@ function drawLayer2(ctx, W, H) {
 
 // ── Main draw ──
 function drawToContext(ctx, W, H, withBg) {
-  ctx.clearRect(0, 0, W, H);
+  if (withBg) ctx.clearRect(0, 0, W, H);
 
   // Background
   if (withBg) {
@@ -1253,46 +1288,42 @@ function drawToContext(ctx, W, H, withBg) {
 // ── Render ──
 var renderDebounce = null;
 function render() {
-  // If GIF preview is active, let the animation loop handle drawing
+  var W = parseInt(document.getElementById('canvasW').value) || 680;
+  var H = parseInt(document.getElementById('canvasH').value) || 1000;
+  var canvas = document.getElementById('poster-canvas');
+  var pane   = document.querySelector('.preview-pane');
+  var availW = pane.clientWidth  - 48;
+  var availH = pane.clientHeight - 48 - 32;
+  if (availW < 10) availW = 400; if (availH < 10) availH = 600;
+  var scale  = Math.min(1, availW/W, availH/H);
+  canvas.style.width  = Math.round(W * scale) + 'px';
+  canvas.style.height = Math.round(H * scale) + 'px';
+  document.getElementById('sizeBadge').textContent = W + ' x ' + H + ' px';
+
+  // Start loops if needed (they'll handle first draw themselves)
   if (gc('gifEnabled')) {
-    // Just update sizing/badges without drawing, loop will redraw
-    var W = parseInt(document.getElementById('canvasW').value) || 680;
-    var H = parseInt(document.getElementById('canvasH').value) || 1000;
-    var canvas = document.getElementById('poster-canvas');
-    canvas.width = W; canvas.height = H;
-    var pane   = document.querySelector('.preview-pane');
-    var availW = pane.clientWidth  - 48;
-    var availH = pane.clientHeight - 48 - 32;
-    if (availW < 10) availW = 400; if (availH < 10) availH = 600;
-    var scale  = Math.min(1, availW/W, availH/H);
-    canvas.style.width  = Math.round(W * scale) + 'px';
-    canvas.style.height = Math.round(H * scale) + 'px';
-    document.getElementById('sizeBadge').textContent = W + ' x ' + H + ' px';
-    // Restart loop so seeds/params reset
-    gifDrawParticles._seeds = null;
-    gifDrawShapes._seeds = null;
-    gifStartLivePreview();
+    if (!gifAnimRAF) {
+      canvas.width = W; canvas.height = H;
+      gifDrawParticles._seeds = null; gifDrawShapes._seeds = null;
+      gifStartLivePreview();
+    }
     clearTimeout(renderDebounce);
     renderDebounce = setTimeout(captureState, 600);
     return;
   }
-  var W = parseInt(document.getElementById('canvasW').value) || 680;
-  var H = parseInt(document.getElementById('canvasH').value) || 1000;
-  var canvas = document.getElementById('poster-canvas');
-  canvas.width  = W;
-  canvas.height = H;
-  var pane     = document.querySelector('.preview-pane');
-  var badgeH   = 32; // fixed reserve for size + zoom badges row
-  var availW   = pane.clientWidth  - 48;
-  var availH   = pane.clientHeight - 48 - badgeH;
-  if (availW < 10) availW = 400;
-  if (availH < 10) availH = 600;
-  var scale = Math.min(1, availW / W, availH / H);
-  canvas.style.width  = Math.round(W * scale) + 'px';
-  canvas.style.height = Math.round(H * scale) + 'px';
-  document.getElementById('sizeBadge').textContent = W + ' x ' + H + ' px';
+  if (gifBgFrames.length) {
+    if (!gifBgRAF) {
+      canvas.width = W; canvas.height = H;
+      gifBgStartPreview();
+    }
+    clearTimeout(renderDebounce);
+    renderDebounce = setTimeout(captureState, 600);
+    return;
+  }
+
+  // Normal static render
+  canvas.width = W; canvas.height = H;
   drawToContext(canvas.getContext('2d'), W, H, true);
-  // debounced undo capture
   clearTimeout(renderDebounce);
   renderDebounce = setTimeout(captureState, 600);
 }
@@ -1400,16 +1431,32 @@ document.addEventListener('DOMContentLoaded', function() {
   document.querySelectorAll('.line-input').forEach(function(el){ el.addEventListener('input', render); });
   document.querySelectorAll('.line2-input').forEach(function(el){ el.addEventListener('input', render); });
 
+  // Drag-and-drop GIF background
+  var gifDz = document.getElementById('gifBgDropZone');
+  gifDz.addEventListener('dragover',  function(e){ e.preventDefault(); gifDz.classList.add('drag-over'); });
+  gifDz.addEventListener('dragleave', function(){ gifDz.classList.remove('drag-over'); });
+  gifDz.addEventListener('drop', function(e){
+    e.preventDefault(); gifDz.classList.remove('drag-over');
+    var file = e.dataTransfer.files[0];
+    if (file && file.type === 'image/gif') {
+      var dt = new DataTransfer(); dt.items.add(file);
+      document.getElementById('gifBgInput').files = dt.files;
+      onGifBgLoad(document.getElementById('gifBgInput'));
+    }
+  });
+
   // GIF toggle
   document.getElementById('gifEnabled').addEventListener('change', function(){
     document.getElementById('gifOptions').classList.toggle('visible', this.checked);
     if (this.checked) {
+      gifBgStopPreview(); // overlay loop takes over
       gifDrawParticles._seeds = null;
       gifDrawShapes._seeds = null;
       gifStartLivePreview();
     } else {
       gifStopLivePreview();
-      render(); // restore normal static render
+      if (gifBgImg && gifBgUrl) gifBgStartPreview(); // hand back to gifBg loop
+      else render();
     }
   });
 
@@ -2561,100 +2608,582 @@ GIFEncoder.prototype._writeWord = function(out, w) {
 function exportGIF() {
   var W = parseInt(document.getElementById('canvasW').value)||680;
   var H = parseInt(document.getElementById('canvasH').value)||1000;
-  var scale      = parseFloat(document.getElementById('gifScale').value);
-  var totalFrames= parseInt(document.getElementById('gifFrames').value);
-  var fps        = parseInt(document.getElementById('gifFPS').value);
-  var colorBits  = parseInt(document.getElementById('gifColors').value);
+  var scale       = parseFloat(document.getElementById('gifScale').value);
+  var totalFrames = parseInt(document.getElementById('gifFrames').value);
+  var fps         = parseInt(document.getElementById('gifFPS').value);
+  var colorBits   = parseInt(document.getElementById('gifColors').value);
   var gW = Math.round(W * scale);
   var gH = Math.round(H * scale);
-  var delayCs = Math.round(100 / fps); // GIF delay in 1/100s units
+  var delayCs = Math.round(100 / fps);
 
-  // Reset seeds so each export is consistent
   gifDrawParticles._seeds = null;
   gifDrawShapes._seeds = null;
-
-  // Pause live preview during export
   gifStopLivePreview();
+  gifBgStopPreview();
 
   var btn = document.getElementById('gifExportBtn');
   btn.disabled = true;
   btn.textContent = 'Encoding…';
   document.getElementById('gifProgressWrap').style.display = 'block';
+  document.getElementById('gifProgressLabel').textContent = 'Preparing…';
 
-  // Draw base design once at full res
-  var baseCanvas = document.createElement('canvas');
-  baseCanvas.width = W; baseCanvas.height = H;
-  drawToContext(baseCanvas.getContext('2d'), W, H, true);
+  // If an imported GIF bg exists AND user wants to use its frames, capture them first
+  var useImportedFrames = gifBgUrl &&
+    document.getElementById('gifBgExportSource').value === 'imported';
 
-  // Render frames asynchronously to keep UI alive
-  var frames = [];
+  if (useImportedFrames) {
+    captureGifBgFrames(totalFrames, fps, gW, gH, W, H).then(function(gifBgFrames) {
+      doRender(gifBgFrames);
+    });
+  } else {
+    doRender(null);
+  }
+
+  function doRender(gifBgFrames) {
+    var baseCanvas = document.createElement('canvas');
+    baseCanvas.width = W; baseCanvas.height = H;
+    drawToContext(baseCanvas.getContext('2d'), W, H, !gifBgFrames);
+
+    var designNoBgCanvas = null;
+    if (gifBgFrames) {
+      designNoBgCanvas = document.createElement('canvas');
+      designNoBgCanvas.width = W; designNoBgCanvas.height = H;
+      drawToContext(designNoBgCanvas.getContext('2d'), W, H, false);
+    }
+
+    var frames = [];
+    var offCanvas = document.createElement('canvas');
+    offCanvas.width = gW; offCanvas.height = gH;
+    var offCtx = offCanvas.getContext('2d');
+
+    function renderFrame(fi) {
+      if (fi >= totalFrames) { encodeAndDownload(); return; }
+      var t = fi / totalFrames;
+      var isBg = gifIsBackgroundAnim();
+      offCtx.clearRect(0, 0, gW, gH);
+
+      var animCanvas = document.createElement('canvas');
+      animCanvas.width = gW; animCanvas.height = gH;
+      gifDrawAnimFrame(animCanvas.getContext('2d'), gW, gH, t);
+
+      if (gifBgFrames) {
+        // Imported GIF frame → bg-type anim overlay → design elements → overlay-type anim
+        var imgData = new ImageData(gifBgFrames[fi % gifBgFrames.length], gW, gH);
+        offCtx.putImageData(imgData, 0, 0);
+        if (isBg) offCtx.drawImage(animCanvas, 0, 0);
+        offCtx.drawImage(designNoBgCanvas, 0, 0, gW, gH);
+        if (!isBg) offCtx.drawImage(animCanvas, 0, 0);
+      } else if (isBg) {
+        offCtx.drawImage(animCanvas, 0, 0);
+        var fd = document.createElement('canvas'); fd.width = W; fd.height = H;
+        drawToContext(fd.getContext('2d'), W, H, false);
+        offCtx.drawImage(fd, 0, 0, gW, gH);
+      } else {
+        offCtx.drawImage(baseCanvas, 0, 0, gW, gH);
+        offCtx.drawImage(animCanvas, 0, 0);
+      }
+
+      frames.push(new Uint8ClampedArray(offCtx.getImageData(0, 0, gW, gH).data));
+      document.getElementById('gifProgressBar').style.width = Math.round((fi+1)/totalFrames*80) + '%';
+      document.getElementById('gifProgressLabel').textContent = 'Rendering frame ' + (fi+1) + ' / ' + totalFrames + '…';
+      setTimeout(function(){ renderFrame(fi + 1); }, 0);
+    }
+
+    function encodeAndDownload() {
+      document.getElementById('gifProgressLabel').textContent = 'Encoding GIF…';
+      setTimeout(function() {
+        var encoder = new GIFEncoder();
+        var gifData = encoder.encode(frames, gW, gH, colorBits, delayCs, function(p) {
+          document.getElementById('gifProgressBar').style.width = Math.round(80 + p * 20) + '%';
+        });
+        var blob = new Blob([gifData], { type: 'image/gif' });
+        var textLabel = Array.from(document.querySelectorAll('.line-input'))
+          .map(function(i){ return i.value.trim(); }).filter(Boolean)
+          .join('-').replace(/\s+/g,'_').toLowerCase();
+        var a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = (textLabel||'poster') + '-animated.gif';
+        a.click();
+        document.getElementById('gifProgressWrap').style.display = 'none';
+        document.getElementById('gifProgressBar').style.width = '0%';
+        btn.disabled = false;
+        btn.textContent = '↓ Export Animated GIF';
+        if (gc('gifEnabled')) gifStartLivePreview();
+        else if (gifBgImg && gifBgImg.src) gifBgStartPreview();
+      }, 0);
+    }
+
+    renderFrame(0);
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════
+// ── Animated GIF Background Import ───────────────────────────────
+// Decodes GIF frames directly from binary — no hidden <img> tricks.
+// ══════════════════════════════════════════════════════════════════
+
+var gifBgFrames  = [];    // array of ImageBitmap, one per GIF frame
+var gifBgDelays  = [];    // delay in ms per frame
+var gifBgWidth   = 0;
+var gifBgHeight  = 0;
+var gifBgUrl     = null;
+var gifBgRAF     = null;
+var gifBgFrameIdx = 0;
+var gifBgLastTime = 0;
+var gifBgFile    = null;  // keep reference for export
+
+function onGifBgLoad(input) {
+  var file = input.files[0];
+  if (!file) return;
+  gifBgFile = file;
+  if (gifBgUrl) URL.revokeObjectURL(gifBgUrl);
+  gifBgUrl = URL.createObjectURL(file);
+
+  document.getElementById('gifBgName').textContent = file.name;
+  document.getElementById('gifBgName').style.display = 'block';
+  document.getElementById('gifBgDropZone').querySelector('.dz-label').textContent = 'Click to replace';
+  document.getElementById('gifBgOptions').classList.add('visible');
+
+  // Read file as ArrayBuffer and decode frames
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    decodeGifFrames(e.target.result, function(frames, delays, w, h) {
+      gifBgFrames  = frames;
+      gifBgDelays  = delays;
+      gifBgWidth   = w;
+      gifBgHeight  = h;
+      gifBgFrameIdx = 0;
+      gifBgLastTime = 0;
+      document.getElementById('gifBgExportMode') && (document.getElementById('gifBgExportMode').style.display = 'none');
+      document.getElementById('gifBgExportSection').style.display = 'block';
+      gifBgStartPreview();
+    });
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+// ── GIF binary frame decoder ──
+// Extracts each frame as an ImageBitmap using the Canvas 2D API.
+// Handles GIF89a dispose methods and local colour tables.
+function decodeGifFrames(buffer, callback) {
+  var data = new Uint8Array(buffer);
+  var pos = 0;
+
+  function byte_() { return data[pos++]; }
+  function word_() { var v = data[pos] | (data[pos+1] << 8); pos += 2; return v; }
+
+  pos = 6;
+  var sw = word_(), sh = word_();
+  var packed = byte_();
+  var hasGCT = (packed >> 7) & 1;
+  byte_(); byte_();
+  var gctSize = hasGCT ? 3 * (1 << ((packed & 7) + 1)) : 0;
+  var gct = hasGCT ? data.slice(pos, pos + gctSize) : null;
+  pos += gctSize;
+
+  var frames = [], delays = [];
+  var gceDelay = 100, gceTrans = -1, gceDispose = 0;
+
+  var persist = document.createElement('canvas');
+  persist.width = sw; persist.height = sh;
+  var pCtx = persist.getContext('2d');
+  var prev = document.createElement('canvas');
+  prev.width = sw; prev.height = sh;
+
+  function readSubBlocks() {
+    var out = [];
+    while (true) {
+      var sz = byte_();
+      if (sz === 0) break;
+      for (var i = 0; i < sz; i++) out.push(data[pos++]);
+    }
+    return out;
+  }
+
+  while (pos < data.length) {
+    var b = byte_();
+    if (b === 0x3B) break;
+
+    if (b === 0x21) {
+      var ext = byte_();
+      if (ext === 0xF9) {
+        byte_();
+        var ef = byte_();
+        gceDispose = (ef >> 3) & 7;
+        gceDelay = word_() * 10 || 100;
+        gceTrans = (ef & 1) ? byte_() : (byte_(), -1);
+        byte_();
+      } else {
+        readSubBlocks();
+      }
+      continue;
+    }
+
+    if (b === 0x2C) {
+      var fx = word_(), fy = word_(), fw = word_(), fh = word_();
+      var fp = byte_();
+      var hasLCT = (fp >> 7) & 1;
+      var lctSize = hasLCT ? 3 * (1 << ((fp & 7) + 1)) : 0;
+      var lct = hasLCT ? data.slice(pos, pos + lctSize) : null;
+      pos += lctSize;
+      var ct = lct || gct;
+
+      var minCode = byte_();
+      var lzwData = readSubBlocks();
+      var indices = gifLZWDecode(lzwData, minCode, fw * fh);
+
+      var frameData = new Uint8ClampedArray(fw * fh * 4);
+      for (var i = 0; i < indices.length; i++) {
+        var idx = indices[i];
+        if (idx === gceTrans) {
+          frameData[i*4+3] = 0;
+        } else {
+          frameData[i*4]   = ct ? ct[idx*3]   : 0;
+          frameData[i*4+1] = ct ? ct[idx*3+1] : 0;
+          frameData[i*4+2] = ct ? ct[idx*3+2] : 0;
+          frameData[i*4+3] = 255;
+        }
+      }
+
+      if (gceDispose === 3) {
+        prev.getContext('2d').drawImage(persist, 0, 0);
+      }
+      if (gceDispose === 2) {
+        pCtx.clearRect(fx, fy, fw, fh);
+      }
+
+      var patch = new ImageData(frameData, fw, fh);
+      var patchCanvas = document.createElement('canvas');
+      patchCanvas.width = fw; patchCanvas.height = fh;
+      patchCanvas.getContext('2d').putImageData(patch, 0, 0);
+      pCtx.drawImage(patchCanvas, fx, fy);
+
+      // Store snapshot canvas directly — synchronous, no async
+      var snapshot = document.createElement('canvas');
+      snapshot.width = sw; snapshot.height = sh;
+      snapshot.getContext('2d').drawImage(persist, 0, 0);
+      frames.push(snapshot);
+      delays.push(gceDelay);
+
+      if (gceDispose === 2) {
+        pCtx.clearRect(fx, fy, fw, fh);
+      } else if (gceDispose === 3) {
+        pCtx.clearRect(0, 0, sw, sh);
+        pCtx.drawImage(prev, 0, 0);
+      }
+
+      gceDelay = 100; gceTrans = -1; gceDispose = 0;
+      continue;
+    }
+  }
+
+  // Synchronous — call callback immediately
+  callback(frames, delays, sw, sh);
+}
+
+// ── GIF LZW decoder ──
+function gifLZWDecode(data, minCode, pixelCount) {
+  var clearCode = 1 << minCode;
+  var eofCode   = clearCode + 1;
+  var codeSize  = minCode + 1;
+  var maxCode   = 1 << codeSize;
+
+  var table = [];
+  function resetTable() {
+    table = [];
+    for (var i = 0; i < clearCode; i++) table[i] = [i];
+    table[clearCode] = []; table[eofCode] = [];
+    codeSize = minCode + 1; maxCode = 1 << codeSize;
+  }
+  resetTable();
+
+  var bp = 0;
+  function readCode() {
+    var val = 0;
+    for (var b = 0; b < codeSize; b++) {
+      var bi = (bp + b) >> 3, biti = (bp + b) & 7;
+      if (bi < data.length) val |= ((data[bi] >> biti) & 1) << b;
+    }
+    bp += codeSize; return val;
+  }
+
+  var out = new Uint8Array(pixelCount);
+  var outPos = 0;
+
+  var code = readCode(); // should be clearCode
+  resetTable();
+  var prev = readCode();
+  if (prev < table.length) {
+    var e = table[prev];
+    for (var i = 0; i < e.length && outPos < pixelCount; i++) out[outPos++] = e[i];
+  }
+
+  while (outPos < pixelCount) {
+    code = readCode();
+    if (code === eofCode) break;
+    if (code === clearCode) { resetTable(); prev = readCode(); if (prev < table.length) { var e2=table[prev]; for(var i=0;i<e2.length&&outPos<pixelCount;i++) out[outPos++]=e2[i]; } continue; }
+    var entry;
+    if (code < table.length && table[code].length) entry = table[code];
+    else if (code === table.length) entry = table[prev].concat(table[prev][0]);
+    else break;
+    for (var i = 0; i < entry.length && outPos < pixelCount; i++) out[outPos++] = entry[i];
+    if (table.length < 4096) {
+      table.push(table[prev].concat(entry[0]));
+      if (table.length >= maxCode && codeSize < 12) { codeSize++; maxCode = 1 << codeSize; }
+    }
+    prev = code;
+  }
+  return out;
+}
+
+function clearGifBg() {
+  gifBgStopPreview();
+  if (gifBgUrl) { URL.revokeObjectURL(gifBgUrl); gifBgUrl = null; }
+  gifBgFrames = []; gifBgDelays = []; gifBgFile = null;
+  document.getElementById('gifBgInput').value = '';
+  document.getElementById('gifBgName').style.display = 'none';
+  document.getElementById('gifBgDropZone').querySelector('.dz-label').textContent = 'Click or drag a .gif file here';
+  document.getElementById('gifBgOptions').classList.remove('visible');
+  document.getElementById('gifBgExportSection').style.display = 'none';
+  if (gc('gifEnabled')) gifStartLivePreview();
+  else render();
+}
+
+function gifBgUpdate() {
+  // opacity/blur/fit changed — next frame will pick it up automatically
+}
+
+function gifBgStartPreview() {
+  if (gc('gifEnabled')) return;
+  gifBgStopPreview();
+  if (!gifBgFrames.length) return;
+  gifBgFrameIdx = 0; gifBgLastTime = 0;
+  function loop(ts) {
+    try {
+      if (!gifBgLastTime) gifBgLastTime = ts;
+      var elapsed = ts - gifBgLastTime;
+      var delay = gifBgDelays[gifBgFrameIdx] || 100;
+      if (elapsed >= delay) {
+        gifBgFrameIdx = (gifBgFrameIdx + 1) % gifBgFrames.length;
+        gifBgLastTime = ts;
+      }
+      gifBgRenderFrame();
+    } catch(e) {
+      console.error('[gifBg loop ERROR]', e);
+      // Don't stop — keep looping even if one frame fails
+    }
+    gifBgRAF = requestAnimationFrame(loop);
+  }
+  gifBgRAF = requestAnimationFrame(loop);
+}
+
+function gifBgStopPreview() {
+  if (gifBgRAF) { cancelAnimationFrame(gifBgRAF); gifBgRAF = null; }
+}
+
+function gifBgRenderFrame() {
+  if (!gifBgFrames.length) return;
+  var W = parseInt(document.getElementById('canvasW').value) || 680;
+  var H = parseInt(document.getElementById('canvasH').value) || 1000;
+  var canvas = document.getElementById('poster-canvas');
+  if (canvas.width !== W || canvas.height !== H) {
+    canvas.width = W; canvas.height = H;
+  }
+  var bmp = gifBgFrames[gifBgFrameIdx];
+  if (!bmp) { console.error('[gifBg] no frame at idx', gifBgFrameIdx); return; }
+
+  var comp = document.createElement('canvas');
+  comp.width = W; comp.height = H;
+  var cCtx = comp.getContext('2d');
+
+  // 1. Background fill
+  var bgType = gv('bgType');
+  if (gc('bgGradEnabled')) {
+    cCtx.fillStyle = makeBgGrad(cCtx, W, H); cCtx.fillRect(0,0,W,H);
+  } else if (bgType !== 'transparent') {
+    cCtx.fillStyle = bgType==='dark'?'#101820':bgType==='custom'?gv('bgColor'):'#000000';
+    cCtx.fillRect(0,0,W,H);
+  }
+
+  // 2. GIF frame — draw bmp (canvas element) scaled to fit
+  var iw = bmp.width, ih = bmp.height;
+  var fit = document.getElementById('gifBgFit').value;
+  var opacity = parseInt(document.getElementById('gifBgOpacity').value) / 100;
+  var blur = parseInt(document.getElementById('gifBgBlur').value);
+  cCtx.save();
+  cCtx.globalAlpha = opacity;
+  cCtx.filter = blur > 0 ? 'blur('+blur+'px)' : 'none';
+  var dx=0, dy=0, dw=W, dh=H;
+  if (iw && ih) {
+    if (fit==='cover') { var s=Math.max(W/iw,H/ih); dw=iw*s; dh=ih*s; dx=(W-dw)/2; dy=(H-dh)/2; }
+    else if (fit==='contain') { var s2=Math.min(W/iw,H/ih); dw=iw*s2; dh=ih*s2; dx=(W-dw)/2; dy=(H-dh)/2; }
+  }
+  cCtx.drawImage(bmp, dx, dy, dw, dh);
+  cCtx.restore();
+
+  if (!gifBgRenderFrame._logged) {
+    var px = cCtx.getImageData(W/2|0, H/2|0, 1, 1).data;
+    console.log('[gifBg] frame drawn. bmp.width='+bmp.width+' bmp.height='+bmp.height+' fit='+fit+' dw='+dw+' dh='+dh);
+    console.log('[gifBg] center pixel after GIF draw:', Array.from(px));
+    gifBgRenderFrame._logged = true;
+  }
+
+  // 3. Design elements
+  drawToContext(cCtx, W, H, false);
+
+  // Blit
+  var mainCtx = canvas.getContext('2d');
+  mainCtx.clearRect(0,0,W,H);
+  mainCtx.drawImage(comp, 0, 0);
+}
+gifBgRenderFrame._logged = false;
+
+// Updated gifRenderPreviewFrame override uses decoded frames too
+var _origGifRenderPreviewFrame = gifRenderPreviewFrame;
+gifRenderPreviewFrame = function(t) {
+  if (!gifBgFrames.length) { _origGifRenderPreviewFrame(t); return; }
+  var W = parseInt(document.getElementById('canvasW').value) || 680;
+  var H = parseInt(document.getElementById('canvasH').value) || 1000;
+  var canvas = document.getElementById('poster-canvas');
+  var isBg = gifIsBackgroundAnim();
+  var comp = document.createElement('canvas');
+  comp.width = W; comp.height = H;
+  var cCtx = comp.getContext('2d');
+  if (gc('bgGradEnabled')) {
+    cCtx.fillStyle = makeBgGrad(cCtx, W, H); cCtx.fillRect(0,0,W,H);
+  } else {
+    var bgType = gv('bgType');
+    if (bgType !== 'transparent') { cCtx.fillStyle = bgType==='dark'?'#101820':bgType==='custom'?gv('bgColor'):'#000000'; cCtx.fillRect(0,0,W,H); }
+  }
+  // Current GIF frame
+  var bmp = gifBgFrames[gifBgFrameIdx];
+  var iw=gifBgWidth, ih=gifBgHeight;
+  var fit=document.getElementById('gifBgFit').value;
+  var opacity=parseInt(document.getElementById('gifBgOpacity').value)/100;
+  var blur=parseInt(document.getElementById('gifBgBlur').value);
+  cCtx.save(); cCtx.globalAlpha=opacity; cCtx.filter=blur>0?'blur('+blur+'px)':'none';
+  var dx=0,dy=0,dw=W,dh=H;
+  if(fit==='cover'){var s=Math.max(W/iw,H/ih);dw=iw*s;dh=ih*s;dx=(W-dw)/2;dy=(H-dh)/2;}
+  else if(fit==='contain'){var s2=Math.min(W/iw,H/ih);dw=iw*s2;dh=ih*s2;dx=(W-dw)/2;dy=(H-dh)/2;}
+  cCtx.drawImage(bmp, dx, dy, dw, dh); cCtx.restore();
+  if (isBg) { var ao=document.createElement('canvas'); ao.width=W; ao.height=H; gifDrawAnimFrame(ao.getContext('2d'),W,H,t); cCtx.drawImage(ao,0,0); }
+  drawToContext(cCtx, W, H, false);
+  if (!isBg) { var ao2=document.createElement('canvas'); ao2.width=W; ao2.height=H; gifDrawAnimFrame(ao2.getContext('2d'),W,H,t); cCtx.drawImage(ao2,0,0); }
+  canvas.getContext('2d').drawImage(comp, 0, 0);
+};
+
+// Export: use decoded frames directly (no timing capture needed)
+function captureGifBgFrames(totalFrames, fps, gW, gH, W, H) {
+  return new Promise(function(resolve) {
+    if (!gifBgFrames.length) { resolve(null); return; }
+    var frames = [];
+    var offCanvas = document.createElement('canvas');
+    offCanvas.width = gW; offCanvas.height = gH;
+    var offCtx = offCanvas.getContext('2d');
+    var fit=document.getElementById('gifBgFit').value;
+    var opacity=parseInt(document.getElementById('gifBgOpacity').value)/100;
+    var blur=parseInt(document.getElementById('gifBgBlur').value);
+    var iw=gifBgWidth, ih=gifBgHeight;
+    for (var fi = 0; fi < totalFrames; fi++) {
+      var bmp = gifBgFrames[fi % gifBgFrames.length];
+      offCtx.clearRect(0, 0, gW, gH);
+      offCtx.save(); offCtx.globalAlpha=opacity; offCtx.filter=blur>0?'blur('+blur+'px)':'none';
+      var dx=0,dy=0,dw=gW,dh=gH;
+      if(fit==='cover'){var s=Math.max(gW/iw,gH/ih);dw=iw*s;dh=ih*s;dx=(gW-dw)/2;dy=(gH-dh)/2;}
+      else if(fit==='contain'){var s2=Math.min(gW/iw,gH/ih);dw=iw*s2;dh=ih*s2;dx=(gW-dw)/2;dy=(gH-dh)/2;}
+      offCtx.drawImage(bmp, dx, dy, dw, dh); offCtx.restore();
+      frames.push(new Uint8ClampedArray(offCtx.getImageData(0, 0, gW, gH).data));
+    }
+    resolve(frames);
+  });
+}
+
+// ── Export imported GIF with design baked in ──
+function exportGifBackground() {
+  if (!gifBgFrames.length) { alert('No GIF loaded.'); return; }
+  var W = parseInt(document.getElementById('canvasW').value) || 680;
+  var H = parseInt(document.getElementById('canvasH').value) || 1000;
+  var scale     = parseFloat(document.getElementById('gifBgScale').value);
+  var colorBits = parseInt(document.getElementById('gifBgColors').value);
+  var gW = Math.round(W * scale);
+  var gH = Math.round(H * scale);
+
+  var btn = document.getElementById('gifBgExportBtn');
+  btn.disabled = true; btn.textContent = 'Encoding…';
+  document.getElementById('gifBgProgressWrap').style.display = 'block';
+
+  // Draw design-only elements (no bg) to a full-res offscreen canvas once
+  var designCanvas = document.createElement('canvas');
+  designCanvas.width = W; designCanvas.height = H;
+  drawToContext(designCanvas.getContext('2d'), W, H, false);
+
+  var fit     = document.getElementById('gifBgFit').value;
+  var opacity = parseInt(document.getElementById('gifBgOpacity').value) / 100;
+  var blur    = parseInt(document.getElementById('gifBgBlur').value);
+  var iw = gifBgWidth, ih = gifBgHeight;
+
   var offCanvas = document.createElement('canvas');
   offCanvas.width = gW; offCanvas.height = gH;
   var offCtx = offCanvas.getContext('2d');
 
-  function renderFrame(fi) {
-    if (fi >= totalFrames) {
-      encodeAndDownload();
-      return;
-    }
-    var t = fi / totalFrames;
-    var isBg = gifIsBackgroundAnim();
+  // Use actual GIF frame delays
+  var totalFrames = gifBgFrames.length;
+  var avgDelay = gifBgDelays.reduce(function(a,b){return a+b;},0) / (gifBgDelays.length||1);
+  var fps = Math.round(1000 / avgDelay) || 12;
+  var delayCs = Math.round(avgDelay / 10);
+
+  var frames = [];
+  for (var fi = 0; fi < totalFrames; fi++) {
     offCtx.clearRect(0, 0, gW, gH);
-
-    var animCanvas = document.createElement('canvas');
-    animCanvas.width = gW; animCanvas.height = gH;
-    gifDrawAnimFrame(animCanvas.getContext('2d'), gW, gH, t);
-
-    if (isBg) {
-      // Anim is the background — draw it first
-      offCtx.drawImage(animCanvas, 0, 0);
-      // Then draw design elements (no bg) at full res scaled down
-      var fullDesign = document.createElement('canvas');
-      fullDesign.width = W; fullDesign.height = H;
-      drawToContext(fullDesign.getContext('2d'), W, H, false);
-      offCtx.drawImage(fullDesign, 0, 0, gW, gH);
-    } else {
-      // Design first (with bg), anim overlay on top
-      offCtx.drawImage(baseCanvas, 0, 0, gW, gH);
-      offCtx.drawImage(animCanvas, 0, 0);
+    // 1. Solid bg
+    var bgType = gv('bgType');
+    if (gc('bgGradEnabled')) {
+      offCtx.fillStyle = makeBgGrad(offCtx, gW, gH); offCtx.fillRect(0,0,gW,gH);
+    } else if (bgType !== 'transparent') {
+      offCtx.fillStyle = bgType==='dark'?'#101820':bgType==='custom'?gv('bgColor'):'#000000';
+      offCtx.fillRect(0,0,gW,gH);
     }
-
+    // 2. GIF frame scaled
+    var bmp = gifBgFrames[fi];
+    offCtx.save();
+    offCtx.globalAlpha = opacity;
+    offCtx.filter = blur > 0 ? 'blur('+blur+'px)' : 'none';
+    var dx=0, dy=0, dw=gW, dh=gH;
+    if (fit==='cover'){var s=Math.max(gW/iw,gH/ih);dw=iw*s;dh=ih*s;dx=(gW-dw)/2;dy=(gH-dh)/2;}
+    else if (fit==='contain'){var s2=Math.min(gW/iw,gH/ih);dw=iw*s2;dh=ih*s2;dx=(gW-dw)/2;dy=(gH-dh)/2;}
+    offCtx.drawImage(bmp, dx, dy, dw, dh);
+    offCtx.restore();
+    // 3. Design elements scaled
+    offCtx.drawImage(designCanvas, 0, 0, gW, gH);
     frames.push(new Uint8ClampedArray(offCtx.getImageData(0, 0, gW, gH).data));
 
     var pct = Math.round((fi+1) / totalFrames * 80);
-    document.getElementById('gifProgressBar').style.width = pct + '%';
-    document.getElementById('gifProgressLabel').textContent = 'Rendering frame ' + (fi+1) + ' / ' + totalFrames + '…';
-    setTimeout(function(){ renderFrame(fi + 1); }, 0);
+    document.getElementById('gifBgProgressBar').style.width = pct + '%';
+    document.getElementById('gifBgProgressLabel').textContent = 'Compositing frame ' + (fi+1) + ' / ' + totalFrames;
   }
 
-  function encodeAndDownload() {
-    document.getElementById('gifProgressLabel').textContent = 'Encoding GIF…';
-    setTimeout(function() {
-      var encoder = new GIFEncoder();
-      var gifData = encoder.encode(frames, gW, gH, colorBits, delayCs, function(p) {
-        document.getElementById('gifProgressBar').style.width = Math.round(80 + p * 20) + '%';
-      });
-      var blob = new Blob([gifData], { type: 'image/gif' });
-      var textLabel = Array.from(document.querySelectorAll('.line-input'))
-        .map(function(i){ return i.value.trim(); }).filter(function(v){ return v; })
-        .join('-').replace(/\s+/g,'_').toLowerCase();
-      var a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = (textLabel||'poster') + '-animated.gif';
-      a.click();
-      document.getElementById('gifProgressWrap').style.display = 'none';
-      document.getElementById('gifProgressBar').style.width = '0%';
-      btn.disabled = false;
-      btn.textContent = '↓ Export Animated GIF';
-      // Restart live preview
-      if (gc('gifEnabled')) gifStartLivePreview();
-    }, 0);
-  }
-
-  renderFrame(0);
+  document.getElementById('gifBgProgressLabel').textContent = 'Encoding GIF…';
+  setTimeout(function() {
+    var encoder = new GIFEncoder();
+    var gifData = encoder.encode(frames, gW, gH, colorBits, delayCs, function(p) {
+      document.getElementById('gifBgProgressBar').style.width = Math.round(80 + p * 20) + '%';
+    });
+    var blob = new Blob([gifData], { type: 'image/gif' });
+    var textLabel = Array.from(document.querySelectorAll('.line-input'))
+      .map(function(i){ return i.value.trim(); }).filter(Boolean)
+      .join('-').replace(/\s+/g,'_').toLowerCase();
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = (textLabel||'poster') + '-bg.gif';
+    a.click();
+    document.getElementById('gifBgProgressWrap').style.display = 'none';
+    document.getElementById('gifBgProgressBar').style.width = '0%';
+    btn.disabled = false; btn.textContent = '↓ Export GIF with design';
+  }, 0);
 }
 
 window.addEventListener('resize', render);
+
 </script>
 
 <style>
